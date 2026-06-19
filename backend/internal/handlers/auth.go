@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -21,32 +22,40 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validar campos
 	if req.Email == "" || req.Password == "" || req.FullName == "" {
 		respondError(w, http.StatusBadRequest, "Todos los campos son requeridos")
 		return
 	}
 
-	// Hashear contraseña
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Error procesando contraseña")
 		return
 	}
 
-	// Crear IDs
 	userID := uuid.New().String()
 
-	// Guardar usuario en PostgreSQL
 	if err := h.DB.CreateUser(userID, req.Email, string(hashedPassword), req.FullName); err != nil {
 		respondError(w, http.StatusConflict, "El email ya está registrado")
 		return
 	}
 
-	// Responder
+	// Crear cuenta bancaria automáticamente
+	accountID := fmt.Sprintf("4001-%04d-%04d-%04d",
+		time.Now().UnixNano()%9999,
+		time.Now().UnixNano()%9999,
+		time.Now().UnixNano()%9999,
+	)
+
+	if err := h.DB.CreateAccount(accountID, userID, "checking"); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error creando cuenta bancaria")
+		return
+	}
+
 	respondJSON(w, http.StatusCreated, map[string]interface{}{
-		"message": "Usuario registrado correctamente",
-		"user_id": userID,
+		"message":    "Usuario registrado correctamente",
+		"user_id":    userID,
+		"account_id": accountID,
 	})
 }
 

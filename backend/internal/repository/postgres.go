@@ -39,6 +39,7 @@ func (p *PostgresDB) CreateTables() error {
 		id         VARCHAR(20) PRIMARY KEY,
 		user_id    UUID NOT NULL REFERENCES users(id),
 		type       VARCHAR(20) NOT NULL,
+		nickname   VARCHAR(100),
 		balance    DECIMAL(15,2) DEFAULT 0,
 		currency   VARCHAR(10) DEFAULT 'HNL',
 		created_at TIMESTAMP DEFAULT NOW()
@@ -59,6 +60,10 @@ func (p *PostgresDB) CreateTables() error {
 	if err != nil {
 		return fmt.Errorf("error creando tablas: %w", err)
 	}
+
+	// Migración: agregar columna nickname si no existe
+	alterQuery := `ALTER TABLE accounts ADD COLUMN IF NOT EXISTS nickname VARCHAR(100);`
+	p.DB.Exec(alterQuery)
 
 	fmt.Println("Tablas creadas correctamente")
 	return nil
@@ -106,16 +111,6 @@ func (p *PostgresDB) CreateAccount(id, userID, accountType string) error {
 	return nil
 }
 
-func (p *PostgresDB) GetAccountsByUserID(userID string) ([]AccountRecord, error) {
-	var accounts []AccountRecord
-	query := `SELECT id, user_id, type, balance, currency, created_at FROM accounts WHERE user_id = $1`
-	err := p.DB.Select(&accounts, query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("error obteniendo cuentas: %w", err)
-	}
-	return accounts, nil
-}
-
 func (p *PostgresDB) UpdateBalance(accountID string, amount float64) error {
 	query := `UPDATE accounts SET balance = balance + $1 WHERE id = $2`
 	_, err := p.DB.Exec(query, amount, accountID)
@@ -125,14 +120,64 @@ func (p *PostgresDB) UpdateBalance(accountID string, amount float64) error {
 	return nil
 }
 
+func (p *PostgresDB) GetAccountsByUserID(userID string) ([]AccountRecord, error) {
+	var accounts []AccountRecord
+	query := `SELECT id, user_id, type, nickname, balance, currency, created_at FROM accounts WHERE user_id = $1`
+	err := p.DB.Select(&accounts, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error obteniendo cuentas: %w", err)
+	}
+	return accounts, nil
+}
+
 func (p *PostgresDB) GetAccountByID(accountID string) (*AccountRecord, error) {
 	var account AccountRecord
-	query := `SELECT id, user_id, type, balance, currency, created_at FROM accounts WHERE id = $1`
+	query := `SELECT id, user_id, type, nickname, balance, currency, created_at FROM accounts WHERE id = $1`
 	err := p.DB.Get(&account, query, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("cuenta no encontrada: %w", err)
 	}
 	return &account, nil
+}
+
+func (p *PostgresDB) DeleteAccount(accountID, userID string) error {
+	// Verificar que el balance sea 0
+	var balance float64
+	query := `SELECT balance FROM accounts WHERE id = $1 AND user_id = $2`
+	err := p.DB.Get(&balance, query, accountID, userID)
+	if err != nil {
+		return fmt.Errorf("cuenta no encontrada")
+	}
+
+	if balance != 0 {
+		return fmt.Errorf("la cuenta debe tener saldo en cero para poder eliminarla")
+	}
+
+	deleteQuery := `DELETE FROM accounts WHERE id = $1 AND user_id = $2`
+	result, err := p.DB.Exec(deleteQuery, accountID, userID)
+	if err != nil {
+		return fmt.Errorf("error eliminando cuenta: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("cuenta no encontrada")
+	}
+
+	return nil
+}
+
+func (p *PostgresDB) UpdateAccountNickname(accountID, userID, nickname string) error {
+	query := `UPDATE accounts SET nickname = $1 WHERE id = $2 AND user_id = $3`
+	result, err := p.DB.Exec(query, nickname, accountID, userID)
+	if err != nil {
+		return fmt.Errorf("error actualizando nombre: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("cuenta no encontrada o no pertenece al usuario")
+	}
+	return nil
 }
 
 // ---- Transacciones ----
@@ -166,29 +211,30 @@ func (p *PostgresDB) GetTransactionsByAccount(accountID string, limit int) ([]Tr
 // ---- Structs internos para leer de la DB ----
 
 type UserRecord struct {
-	ID        string `db:"id"`
-	Email     string `db:"email"`
-	Password  string `db:"password"`
-	FullName  string `db:"full_name"`
-	CreatedAt string `db:"created_at"`
+	ID        string `db:"id" json:"id"`
+	Email     string `db:"email" json:"email"`
+	Password  string `db:"password" json:"-"`
+	FullName  string `db:"full_name" json:"full_name"`
+	CreatedAt string `db:"created_at" json:"created_at"`
 }
 
 type AccountRecord struct {
-	ID        string  `db:"id"`
-	UserID    string  `db:"user_id"`
-	Type      string  `db:"type"`
-	Balance   float64 `db:"balance"`
-	Currency  string  `db:"currency"`
-	CreatedAt string  `db:"created_at"`
+	ID        string  `db:"id" json:"id"`
+	UserID    string  `db:"user_id" json:"user_id"`
+	Type      string  `db:"type" json:"type"`
+	Nickname  *string `db:"nickname" json:"nickname"`
+	Balance   float64 `db:"balance" json:"balance"`
+	Currency  string  `db:"currency" json:"currency"`
+	CreatedAt string  `db:"created_at" json:"created_at"`
 }
 
 type TransactionRecord struct {
-	ID          string  `db:"id"`
-	FromAccount string  `db:"from_account"`
-	ToAccount   string  `db:"to_account"`
-	Amount      float64 `db:"amount"`
-	Type        string  `db:"type"`
-	Description string  `db:"description"`
-	Status      string  `db:"status"`
-	Timestamp   string  `db:"timestamp"`
+	ID          string  `db:"id" json:"id"`
+	FromAccount string  `db:"from_account" json:"from_account"`
+	ToAccount   string  `db:"to_account" json:"to_account"`
+	Amount      float64 `db:"amount" json:"amount"`
+	Type        string  `db:"type" json:"type"`
+	Description string  `db:"description" json:"description"`
+	Status      string  `db:"status" json:"status"`
+	Timestamp   string  `db:"timestamp" json:"timestamp"`
 }

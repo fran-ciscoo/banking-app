@@ -58,6 +58,10 @@ func main() {
 		r.Post("/api/transactions/withdraw", h.Withdraw)
 		r.Post("/api/transactions/transfer", h.Transfer)
 		r.Get("/api/transactions/history", h.GetHistory)
+		r.Post("/api/account", h.CreateAccount)
+		r.Post("/api/account/create", h.CreateAccount)
+		r.Put("/api/account/{id}/nickname", h.UpdateAccountNickname)
+		r.Delete("/api/account/{id}", h.DeleteAccount)
 	})
 
 	// 9. Arrancar servidor
