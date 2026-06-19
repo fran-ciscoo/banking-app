@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: banking_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: banking
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  tigerbeetle:
+    image: ghcr.io/tigerbeetle/tigerbeetle:0.15.3
+    container_name: banking_tigerbeetle
+    user: root
+    privileged: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - tigerbeetle_data:/data
+    entrypoint: >
+      sh -c "
+        /tigerbeetle start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle
+      "
+
+volumes:
+  postgres_data:
+  tigerbeetle_data:
+    external: true
