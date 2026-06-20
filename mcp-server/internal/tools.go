@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type Tools struct {
 	Repo *Repository
+	TbDB *TigerBeetleDB
 }
 
-func NewTools(repo *Repository) *Tools {
-	return &Tools{Repo: repo}
+func NewTools(repo *Repository, tbDB *TigerBeetleDB) *Tools {
+	return &Tools{Repo: repo, TbDB: tbDB}
 }
 
 // ---- get_balance ----
@@ -73,6 +75,14 @@ func (t *Tools) Deposit(ctx context.Context, req *mcp.CallToolRequest, input Dep
 		return nil, DepositOutput{}, fmt.Errorf("el monto debe ser mayor a 0")
 	}
 
+	amountCents := uint64(input.Amount * 100)
+	tbAccountID := AccountIDFromString(input.AccountID)
+	transferID := AccountIDFromString(input.AccountID + "-" + uuid.New().String())
+
+	if err := t.TbDB.Deposit(tbAccountID, amountCents, transferID); err != nil {
+		return nil, DepositOutput{}, fmt.Errorf("error registrando deposito contable: %w", err)
+	}
+
 	if err := t.Repo.UpdateBalance(input.AccountID, input.Amount); err != nil {
 		return nil, DepositOutput{}, fmt.Errorf("error actualizando balance: %w", err)
 	}
@@ -108,6 +118,14 @@ func (t *Tools) Withdraw(ctx context.Context, req *mcp.CallToolRequest, input Wi
 
 	if account.Balance < input.Amount {
 		return nil, WithdrawOutput{}, fmt.Errorf("saldo insuficiente")
+	}
+
+	amountCents := uint64(input.Amount * 100)
+	tbAccountID := AccountIDFromString(input.AccountID)
+	transferID := AccountIDFromString(input.AccountID + "-" + uuid.New().String())
+
+	if err := t.TbDB.Withdraw(tbAccountID, amountCents, transferID); err != nil {
+		return nil, WithdrawOutput{}, fmt.Errorf("error registrando retiro contable: %w", err)
 	}
 
 	if err := t.Repo.UpdateBalance(input.AccountID, -input.Amount); err != nil {
@@ -156,6 +174,15 @@ func (t *Tools) Transfer(ctx context.Context, req *mcp.CallToolRequest, input Tr
 	// SEGURIDAD: el chat con IA solo puede transferir entre cuentas del mismo propietario
 	if toAccount.UserID != fromAccount.UserID {
 		return nil, TransferOutput{}, fmt.Errorf("por seguridad, el asistente solo puede transferir dinero entre tus propias cuentas. Para transferir a un tercero, usa la sección de Transacciones en el dashboard")
+	}
+
+	amountCents := uint64(input.Amount * 100)
+	fromTbID := AccountIDFromString(input.FromAccountID)
+	toTbID := AccountIDFromString(input.ToAccountID)
+	transferID := AccountIDFromString(input.FromAccountID + "-" + input.ToAccountID + "-" + uuid.New().String())
+
+	if err := t.TbDB.Transfer(fromTbID, toTbID, amountCents, transferID); err != nil {
+		return nil, TransferOutput{}, fmt.Errorf("error registrando transferencia contable: %w", err)
 	}
 
 	if err := t.Repo.UpdateBalance(input.FromAccountID, -input.Amount); err != nil {

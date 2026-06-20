@@ -24,7 +24,17 @@ func main() {
 		log.Fatalf("Error conectando a la base de datos: %v", err)
 	}
 
-	tools := internal.NewTools(repo)
+	tigerbeetleAddr := os.Getenv("TIGERBEETLE_ADDR")
+	if tigerbeetleAddr == "" {
+		tigerbeetleAddr = "localhost:3000"
+	}
+
+	tbDB, err := internal.NewTigerBeetleDB(tigerbeetleAddr)
+	if err != nil {
+		log.Fatalf("Error conectando a TigerBeetle: %v", err)
+	}
+
+	tools := internal.NewTools(repo, tbDB)
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "banking-mcp-server", Version: "v1.0.0"}, nil)
 

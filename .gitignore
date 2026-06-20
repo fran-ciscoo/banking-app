@@ -23,3 +23,7 @@ tigerbeetle-data/
 .vscode/
 .idea/
 *.DS_Store
+
+# Logs temporales de debugging
+*.txt
+log*.txt

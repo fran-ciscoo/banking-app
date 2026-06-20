@@ -149,7 +149,6 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Obtener cuenta origen
 	accounts, err := h.DB.GetAccountsByUserID(userID)
 	if err != nil || len(accounts) == 0 {
 		respondError(w, http.StatusNotFound, "Cuenta no encontrada")
@@ -157,26 +156,32 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 	fromAccount := accounts[0]
 
-	// Verificar que no se transfiere a sí mismo
 	if fromAccount.ID == req.ToAccountID {
 		respondError(w, http.StatusBadRequest, "No puedes transferirte a ti mismo")
 		return
 	}
 
-	// Verificar saldo
 	if fromAccount.Balance < req.Amount {
 		respondError(w, http.StatusBadRequest, "Saldo insuficiente")
 		return
 	}
 
-	// Verificar que la cuenta destino existe
 	toAccount, err := h.DB.GetAccountByID(req.ToAccountID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "Cuenta destino no encontrada")
 		return
 	}
 
-	// Actualizar balances
+	amountCents := uint64(req.Amount * 100)
+	fromTbID := repository.AccountIDFromString(fromAccount.ID)
+	toTbID := repository.AccountIDFromString(toAccount.ID)
+	transferID := repository.AccountIDFromString(fromAccount.ID + "-" + toAccount.ID + "-" + uuidNow())
+
+	if err := h.TbDB.Transfer(fromTbID, toTbID, amountCents, transferID); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error registrando transferencia contable: "+err.Error())
+		return
+	}
+
 	if err := h.DB.UpdateBalance(fromAccount.ID, -req.Amount); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error actualizando balance origen")
 		return
@@ -187,7 +192,6 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Registrar transacción
 	if err := h.DB.CreateTransaction(fromAccount.ID, toAccount.ID, req.Amount, "transfer", req.Description); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error registrando transacción")
 		return

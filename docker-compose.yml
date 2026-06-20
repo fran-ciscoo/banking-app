@@ -39,11 +39,15 @@ services:
   mcp-server:
     build: ./mcp-server
     container_name: banking_mcp_server
+    privileged: true
     depends_on:
       postgres:
         condition: service_healthy
+      tigerbeetle:
+        condition: service_started
     environment:
       DATABASE_URL: postgres://postgres:password@postgres:5432/banking?sslmode=disable
+      TIGERBEETLE_ADDR: 172.28.0.10:3000
     ports:
       - "9090:9090"
 
