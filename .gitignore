@@ -1,0 +1,25 @@
+# Variables de entorno (NUNCA subir esto)
+.env
+.env.local
+.env.*.local
+backend/.env
+mcp-server/.env
+
+# Go
+backend/bin/
+*.exe
+*.test
+*.out
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+
+# TigerBeetle data
+tigerbeetle-data/
+*.tigerbeetle
+
+# Editor
+.vscode/
+.idea/
+*.DS_Store
