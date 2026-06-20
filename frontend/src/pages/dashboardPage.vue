@@ -179,7 +179,9 @@
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Transacciones recientes</h3>
-          <router-link to="/history" class="text-blue-400 text-sm hover:text-blue-300">Ver todas</router-link>
+          <router-link to="/history" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+            Ver todas
+          </router-link>
         </div>
         <div v-if="transactions.length === 0" class="text-gray-500 text-sm">
           No hay transacciones recientes
@@ -194,18 +196,20 @@
               <p class="text-sm text-white">{{ tx.description || tx.type }}</p>
               <p class="text-xs text-gray-500">{{ formatDate(tx.timestamp) }}</p>
             </div>
-            <p :class="tx.to_account === accounts[0]?.id ? 'text-green-400' : 'text-red-400'" class="font-medium text-sm">
-              {{ tx.to_account === accounts[0]?.id ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
+            <p :class="isIncoming(tx) ? 'text-green-400' : 'text-red-400'" class="font-medium text-sm">
+              {{ isIncoming(tx) ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
             </p>
           </div>
         </div>
       </div>
 
     </div>
+    <ChatWidget />
   </div>
 </template>
 
 <script setup>
+import ChatWidget from '../components/ChatWidget.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -316,5 +320,10 @@ function formatDate(date) {
     month: 'short',
     year: 'numeric'
   })
+}
+
+function isIncoming(tx) {
+  const myAccountIds = accounts.value.map(a => a.id)
+  return myAccountIds.includes(tx.to_account)
 }
 </script>

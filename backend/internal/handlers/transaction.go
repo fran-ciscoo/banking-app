@@ -186,7 +186,6 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Límite opcional por query param
 	limitStr := r.URL.Query().Get("limit")
 	limit := 20
 	if limitStr != "" {
@@ -195,13 +194,7 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	accounts, err := h.DB.GetAccountsByUserID(userID)
-	if err != nil || len(accounts) == 0 {
-		respondError(w, http.StatusNotFound, "Cuenta no encontrada")
-		return
-	}
-
-	transactions, err := h.DB.GetTransactionsByAccount(accounts[0].ID, limit)
+	transactions, err := h.DB.GetTransactionsByUserID(userID, limit)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Error obteniendo historial")
 		return

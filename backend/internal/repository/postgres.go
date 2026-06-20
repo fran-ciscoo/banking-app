@@ -41,7 +41,7 @@ func (p *PostgresDB) CreateTables() error {
 		type       VARCHAR(20) NOT NULL,
 		nickname   VARCHAR(100),
 		balance    DECIMAL(15,2) DEFAULT 0,
-		currency   VARCHAR(10) DEFAULT 'HNL',
+		currency   VARCHAR(10) DEFAULT 'USD',
 		created_at TIMESTAMP DEFAULT NOW()
 	);
 
@@ -64,6 +64,10 @@ func (p *PostgresDB) CreateTables() error {
 	// Migración: agregar columna nickname si no existe
 	alterQuery := `ALTER TABLE accounts ADD COLUMN IF NOT EXISTS nickname VARCHAR(100);`
 	p.DB.Exec(alterQuery)
+
+	// Migración: actualizar moneda a USD
+	updateCurrencyQuery := `UPDATE accounts SET currency = 'USD' WHERE currency = 'HNL';`
+	p.DB.Exec(updateCurrencyQuery)
 
 	fmt.Println("Tablas creadas correctamente")
 	return nil
@@ -202,6 +206,22 @@ func (p *PostgresDB) GetTransactionsByAccount(accountID string, limit int) ([]Tr
 	ORDER BY timestamp DESC
 	LIMIT $2`
 	err := p.DB.Select(&txs, query, accountID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("error obteniendo transacciones: %w", err)
+	}
+	return txs, nil
+}
+
+func (p *PostgresDB) GetTransactionsByUserID(userID string, limit int) ([]TransactionRecord, error) {
+	var txs []TransactionRecord
+	query := `
+	SELECT t.id, t.from_account, t.to_account, t.amount, t.type, t.description, t.status, t.timestamp
+	FROM transactions t
+	WHERE t.from_account IN (SELECT id FROM accounts WHERE user_id = $1)
+	   OR t.to_account IN (SELECT id FROM accounts WHERE user_id = $1)
+	ORDER BY t.timestamp DESC
+	LIMIT $2`
+	err := p.DB.Select(&txs, query, userID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("error obteniendo transacciones: %w", err)
 	}

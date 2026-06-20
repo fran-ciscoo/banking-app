@@ -79,6 +79,11 @@ async function deleteAccount(accountId) {
   return response.data
 }
 
+async function sendChatMessage(message) {
+  const response = await axios.post('http://localhost:8080/api/chat', { message })
+  return response.data.reply
+}
+
   return {
   accounts,
   transactions,
@@ -91,6 +96,7 @@ async function deleteAccount(accountId) {
   transfer,
   createAccount,
   updateNickname,
-  deleteAccount
+  deleteAccount,
+  sendChatMessage
 }
 })
