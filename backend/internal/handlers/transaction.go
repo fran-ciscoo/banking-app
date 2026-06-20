@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fran-ciscoo/banking-app/internal/models"
+	"github.com/fran-ciscoo/banking-app/internal/repository"
 )
 
 func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
@@ -194,10 +195,28 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	transactions, err := h.DB.GetTransactionsByUserID(userID, limit)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Error obteniendo historial")
-		return
+	accountID := r.URL.Query().Get("account")
+
+	var transactions []repository.TransactionRecord
+
+	if accountID != "" {
+		// Verificar que la cuenta pertenece al usuario antes de mostrar su historial
+		account, err := h.DB.GetAccountByID(accountID)
+		if err != nil || account.UserID != userID {
+			respondError(w, http.StatusForbidden, "No tienes acceso a esta cuenta")
+			return
+		}
+		transactions, err = h.DB.GetTransactionsByAccountID(accountID, limit)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "Error obteniendo historial")
+			return
+		}
+	} else {
+		transactions, err = h.DB.GetTransactionsByUserID(userID, limit)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "Error obteniendo historial")
+			return
+		}
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{

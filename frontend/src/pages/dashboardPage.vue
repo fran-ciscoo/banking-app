@@ -87,13 +87,18 @@
                 <button @click="cancelEditNickname" class="text-gray-500 hover:text-gray-400 text-sm">✕</button>
               </div>
               <div v-else class="flex items-center gap-2">
-                <p class="text-sm font-medium text-white">
+                <router-link
+                  :to="`/history?account=${account.id}`"
+                  class="text-sm font-medium text-white hover:text-blue-400 transition-colors"
+                >
                   {{ account.nickname || (account.type === 'checking' ? 'Cuenta corriente' : 'Cuenta de ahorros') }}
-                </p>
+                </router-link>
                 <button @click="startEditNickname(account)" class="text-gray-500 hover:text-gray-300 text-xs">✎</button>
                 <button @click="handleDeleteAccount(account)" class="text-gray-500 hover:text-red-400 text-xs">🗑</button>
               </div>
-              <p class="text-xs text-gray-400">{{ account.id }}</p>
+              <router-link :to="`/history?account=${account.id}`" class="text-xs text-gray-400 hover:text-blue-400 transition-colors">
+                {{ account.id }}
+              </router-link>
             </div>
             <p class="font-semibold text-white">{{ formatCurrency(account.balance) }}</p>
           </div>

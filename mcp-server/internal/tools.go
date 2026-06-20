@@ -148,9 +148,14 @@ func (t *Tools) Transfer(ctx context.Context, req *mcp.CallToolRequest, input Tr
 		return nil, TransferOutput{}, fmt.Errorf("saldo insuficiente")
 	}
 
-	_, err = t.Repo.GetAccountByID(input.ToAccountID)
+	toAccount, err := t.Repo.GetAccountByID(input.ToAccountID)
 	if err != nil {
 		return nil, TransferOutput{}, fmt.Errorf("cuenta destino no encontrada: %w", err)
+	}
+
+	// SEGURIDAD: el chat con IA solo puede transferir entre cuentas del mismo propietario
+	if toAccount.UserID != fromAccount.UserID {
+		return nil, TransferOutput{}, fmt.Errorf("por seguridad, el asistente solo puede transferir dinero entre tus propias cuentas. Para transferir a un tercero, usa la sección de Transacciones en el dashboard")
 	}
 
 	if err := t.Repo.UpdateBalance(input.FromAccountID, -input.Amount); err != nil {

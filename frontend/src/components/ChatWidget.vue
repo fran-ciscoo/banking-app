@@ -98,14 +98,19 @@ async function handleSend() {
   const text = inputText.value.trim()
   if (!text) return
 
+  const history = messages.value.map(m => ({ role: m.role, content: m.content }))
+
   messages.value.push({ role: 'user', content: text })
   inputText.value = ''
   loading.value = true
   scrollToBottom()
 
   try {
-    const reply = await accountStore.sendChatMessage(text)
+    const reply = await accountStore.sendChatMessage(text, history)
     messages.value.push({ role: 'assistant', content: reply })
+    // Refrescar cuentas e historial por si la IA hizo algún movimiento
+    await accountStore.fetchAccount()
+    await accountStore.fetchHistory(5)
   } catch (e) {
     messages.value.push({
       role: 'assistant',

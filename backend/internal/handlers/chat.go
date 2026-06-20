@@ -15,8 +15,14 @@ func NewChatHandler(chatService *services.ChatService) *ChatHandler {
 	return &ChatHandler{ChatService: chatService}
 }
 
+type ChatHistoryItem struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 type ChatRequest struct {
-	Message string `json:"message"`
+	Message string            `json:"message"`
+	History []ChatHistoryItem `json:"history"`
 }
 
 type ChatResponse struct {
@@ -41,7 +47,12 @@ func (h *ChatHandler) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reply, err := h.ChatService.SendMessage(r.Context(), userID, req.Message)
+	var history []services.ChatMessage
+	for _, h := range req.History {
+		history = append(history, services.ChatMessage{Role: h.Role, Content: h.Content})
+	}
+
+	reply, err := h.ChatService.SendMessage(r.Context(), userID, req.Message, history)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Error procesando el mensaje: "+err.Error())
 		return

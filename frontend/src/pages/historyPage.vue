@@ -7,7 +7,9 @@
         <router-link to="/dashboard" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-700">
             ← Volver al inicio
           </router-link>
-        <h1 class="text-xl font-bold">Historial de transacciones</h1>
+        <h1 class="text-xl font-bold">
+          {{ filterAccountId ? 'Historial de esta cuenta' : 'Historial de transacciones' }}
+        </h1>
       </div>
     </nav>
 
@@ -39,6 +41,7 @@
               <p class="text-sm font-medium text-white">{{ tx.description || typeLabel(tx.type) }}</p>
               <p class="text-xs text-gray-500">{{ formatDate(tx.timestamp) }}</p>
               <p class="text-xs text-gray-600">{{ tx.from_account }} → {{ tx.to_account }}</p>
+              <p v-if="!filterAccountId" class="text-xs text-blue-400 mt-1">{{ accountLabel(tx) }}</p>
             </div>
           </div>
           <p :class="amountClass(tx)" class="font-semibold">
@@ -63,6 +66,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAccountStore } from '../stores/account'
+import { useRoute } from 'vue-router'
 
 const accountStore = useAccountStore()
 const loading = ref(true)
@@ -71,15 +75,18 @@ const limit = ref(20)
 const transactions = computed(() => accountStore.transactions)
 const accounts = computed(() => accountStore.accounts)
 
+const route = useRoute()
+const filterAccountId = ref(route.query.account || null)
+
 onMounted(async () => {
   await accountStore.fetchAccount()
-  await accountStore.fetchHistory(limit.value)
+  await accountStore.fetchHistory(limit.value, filterAccountId.value)
   loading.value = false
 })
 
 async function loadMore() {
   limit.value += 20
-  await accountStore.fetchHistory(limit.value)
+  await accountStore.fetchHistory(limit.value, filterAccountId.value)
 }
 
 function typeIcon(tx) {
@@ -129,5 +136,15 @@ function formatDate(date) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+function accountLabel(tx) {
+  const myAccounts = accounts.value
+  const involvedId = myAccounts.find(a => a.id === tx.to_account)?.id === tx.to_account
+    ? tx.to_account
+    : tx.from_account
+  const acc = myAccounts.find(a => a.id === involvedId)
+  if (!acc) return ''
+  return acc.nickname || (acc.type === 'checking' ? 'Cuenta corriente' : 'Cuenta de ahorros')
 }
 </script>

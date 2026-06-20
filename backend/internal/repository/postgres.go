@@ -228,6 +228,21 @@ func (p *PostgresDB) GetTransactionsByUserID(userID string, limit int) ([]Transa
 	return txs, nil
 }
 
+func (p *PostgresDB) GetTransactionsByAccountID(accountID string, limit int) ([]TransactionRecord, error) {
+	var txs []TransactionRecord
+	query := `
+	SELECT id, from_account, to_account, amount, type, description, status, timestamp
+	FROM transactions
+	WHERE from_account = $1 OR to_account = $1
+	ORDER BY timestamp DESC
+	LIMIT $2`
+	err := p.DB.Select(&txs, query, accountID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("error obteniendo transacciones: %w", err)
+	}
+	return txs, nil
+}
+
 // ---- Structs internos para leer de la DB ----
 
 type UserRecord struct {

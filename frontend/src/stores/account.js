@@ -21,10 +21,14 @@ export const useAccountStore = defineStore('account', () => {
     }
   }
 
-  async function fetchHistory(limit = 20) {
+  async function fetchHistory(limit = 20, accountId = null) {
     loading.value = true
     try {
-      const response = await axios.get(`http://localhost:8080/api/transactions/history?limit=${limit}`)
+      let url = `http://localhost:8080/api/transactions/history?limit=${limit}`
+      if (accountId) {
+        url += `&account=${accountId}`
+      }
+      const response = await axios.get(url)
       transactions.value = response.data.transactions || []
     } catch (e) {
       error.value = 'Error obteniendo historial'
@@ -79,8 +83,8 @@ async function deleteAccount(accountId) {
   return response.data
 }
 
-async function sendChatMessage(message) {
-  const response = await axios.post('http://localhost:8080/api/chat', { message })
+async function sendChatMessage(message, history) {
+  const response = await axios.post('http://localhost:8080/api/chat', { message, history })
   return response.data.reply
 }
 
