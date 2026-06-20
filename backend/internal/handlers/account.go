@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"github.com/fran-ciscoo/banking-app/internal/repository"
 	"github.com/fran-ciscoo/banking-app/pkg/config"
 )
 
@@ -77,14 +78,23 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountID := fmt.Sprintf("4001-%04d-%04d-%04d",
-		time.Now().UnixNano()%9999,
-		time.Now().UnixNano()%9999,
-		time.Now().UnixNano()%9999,
+	accountUUID := uuid.New().String()
+	accountID := fmt.Sprintf("4001-%s-%s-%s",
+		accountUUID[0:4],
+		accountUUID[4:8],
+		accountUUID[9:13],
 	)
 
+	// Crear la cuenta en PostgreSQL (metadatos: usuario, tipo, nickname)
 	if err := h.DB.CreateAccount(accountID, userID, req.Type); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error creando cuenta")
+		return
+	}
+
+	// Crear la cuenta contable en TigerBeetle (balances y transferencias)
+	tbAccountID := repository.AccountIDFromString(accountID)
+	if err := h.TbDB.CreateAccount(tbAccountID); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error creando cuenta contable: "+err.Error())
 		return
 	}
 

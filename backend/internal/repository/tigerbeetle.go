@@ -3,6 +3,9 @@ package repository
 import (
 	"fmt"
 	"math/big"
+	"crypto/sha256"
+	"encoding/binary"
+	"time"
 
 	tb "github.com/tigerbeetle/tigerbeetle-go"
 )
@@ -12,13 +15,20 @@ type TigerBeetleDB struct {
 }
 
 func NewTigerBeetleDB(address string) (*TigerBeetleDB, error) {
-	client, err := tb.NewClient(tb.ToUint128(0), []string{address})
-	if err != nil {
-		return nil, fmt.Errorf("error conectando a TigerBeetle: %w", err)
+	var client tb.Client
+	var err error
+
+	for i := 0; i < 10; i++ {
+		client, err = tb.NewClient(tb.ToUint128(0), []string{address})
+		if err == nil {
+			fmt.Println("Conectado a TigerBeetle correctamente")
+			return &TigerBeetleDB{Client: client}, nil
+		}
+		fmt.Printf("Intento %d/10 conectando a TigerBeetle (%s)... reintentando en 2s\n", i+1, address)
+		time.Sleep(2 * time.Second)
 	}
 
-	fmt.Println("Conectado a TigerBeetle correctamente")
-	return &TigerBeetleDB{Client: client}, nil
+	return nil, fmt.Errorf("error conectando a TigerBeetle tras varios intentos: %w", err)
 }
 
 func (t *TigerBeetleDB) Close() {
@@ -39,8 +49,10 @@ func (t *TigerBeetleDB) CreateAccount(id uint64) error {
 		return fmt.Errorf("error creando cuenta: %w", err)
 	}
 
-	if len(results) > 0 {
-		return fmt.Errorf("error creando cuenta: %v", results[0].Status)
+	for _, r := range results {
+		if r.Status != tb.AccountCreated && r.Status != tb.AccountExists {
+			return fmt.Errorf("error creando cuenta: %v", r.Status)
+		}
 	}
 
 	return nil
@@ -85,8 +97,10 @@ func (t *TigerBeetleDB) Deposit(toAccountID uint64, amount uint64, transferID ui
 		return fmt.Errorf("error en deposito: %w", err)
 	}
 
-	if len(results) > 0 {
-		return fmt.Errorf("error en deposito: %v", results[0].Status)
+	for _, r := range results {
+		if r.Status != tb.TransferCreated {
+			return fmt.Errorf("error en deposito: %v", r.Status)
+		}
 	}
 
 	return nil
@@ -109,8 +123,10 @@ func (t *TigerBeetleDB) Withdraw(fromAccountID uint64, amount uint64, transferID
 		return fmt.Errorf("error en retiro: %w", err)
 	}
 
-	if len(results) > 0 {
-		return fmt.Errorf("error en retiro: %v", results[0].Status)
+	for _, r := range results {
+		if r.Status != tb.TransferCreated {
+			return fmt.Errorf("error en retiro: %v", r.Status)
+		}
 	}
 
 	return nil
@@ -133,9 +149,18 @@ func (t *TigerBeetleDB) Transfer(fromAccountID, toAccountID, amount, transferID 
 		return fmt.Errorf("error en transferencia: %w", err)
 	}
 
-	if len(results) > 0 {
-		return fmt.Errorf("error en transferencia: %v", results[0].Status)
+	for _, r := range results {
+		if r.Status != tb.TransferCreated {
+			return fmt.Errorf("error en transferencia: %v", r.Status)
+		}
 	}
 
 	return nil
+}
+
+// AccountIDFromString convierte el ID de cuenta (string) en un uint64 determinístico
+// para usar como ID de cuenta en TigerBeetle.
+func AccountIDFromString(accountID string) uint64 {
+	hash := sha256.Sum256([]byte(accountID))
+	return binary.BigEndian.Uint64(hash[:8])
 }

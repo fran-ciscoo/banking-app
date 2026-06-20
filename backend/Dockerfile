@@ -1,4 +1,4 @@
-FROM golang:1.26-bookworm AS builder
+FROM golang:1.26-bookworm
 
 RUN apt-get update && apt-get install -y gcc
 
@@ -11,13 +11,6 @@ COPY . .
 
 ENV CGO_ENABLED=1
 RUN go build -o server ./cmd/server
-
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY --from=builder /app/server .
 
 EXPOSE 8080
 CMD ["./server"]

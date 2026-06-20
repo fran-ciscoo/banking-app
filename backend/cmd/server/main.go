@@ -25,11 +25,22 @@ func main() {
 		log.Fatalf("Error conectando a la base de datos: %v", err)
 	}
 
+	fmt.Printf("Intentando conectar a TigerBeetle con dirección: [%s]\n", cfg.TigerBeetleAddr)
+	tbDB, err := repository.NewTigerBeetleDB(cfg.TigerBeetleAddr)
+	if err != nil {
+		log.Fatalf("Error conectando a TigerBeetle: %v", err)
+	}
+
+	// Crear la cuenta especial EXTERNAL (ID 1) que representa dinero entrando/saliendo del banco
+	if err := tbDB.CreateAccount(1); err != nil {
+		log.Printf("Advertencia: no se pudo crear cuenta EXTERNAL (puede que ya exista): %v", err)
+	}
+
 	if err := db.CreateTables(); err != nil {
 		log.Fatalf("Error creando tablas: %v", err)
 	}
 
-	h := handlers.NewHandler(db)
+	h := handlers.NewHandler(db, tbDB)
 
 	// Conectar al servidor MCP
 	mcpServerURL := cfg.MCPServerURL

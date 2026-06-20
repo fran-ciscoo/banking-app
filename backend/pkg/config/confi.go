@@ -21,7 +21,7 @@ func Load() *Config {
 		Port:            getEnv("PORT", "8080"),
 		DatabaseURL:     getEnv("DATABASE_URL", ""),
 		JWTSecret:       getEnv("JWT_SECRET", "cambia-esto-en-produccion"),
-		TigerBeetleAddr: getEnv("TIGERBEETLE_ADDR", "3000"),
+		TigerBeetleAddr: getEnv("TIGERBEETLE_ADDR", "localhost:3000"),
 		OpenRouterKey:   getEnv("OPENROUTER_API_KEY", ""),
 		MCPServerURL:    getEnv("MCP_SERVER_URL", "http://localhost:9090"),
 	}

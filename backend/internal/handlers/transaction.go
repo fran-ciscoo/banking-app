@@ -6,9 +6,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/fran-ciscoo/banking-app/internal/models"
 	"github.com/fran-ciscoo/banking-app/internal/repository"
 )
+
+func uuidNow() string {
+	return uuid.New().String()
+}
 
 func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserIDFromToken(r)
@@ -28,7 +33,6 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Obtener cuenta del usuario
 	accounts, err := h.DB.GetAccountsByUserID(userID)
 	if err != nil || len(accounts) == 0 {
 		respondError(w, http.StatusNotFound, "Cuenta no encontrada")
@@ -37,13 +41,23 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 
 	account := accounts[0]
 
-	// Actualizar balance en PostgreSQL
+	// Convertir el monto a centavos (TigerBeetle trabaja con enteros, sin decimales)
+	amountCents := uint64(req.Amount * 100)
+	tbAccountID := repository.AccountIDFromString(account.ID)
+	transferID := repository.AccountIDFromString(account.ID + "-" + uuidNow())
+
+	// Registrar el depósito en TigerBeetle (motor contable real)
+	if err := h.TbDB.Deposit(tbAccountID, amountCents, transferID); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error registrando depósito contable: "+err.Error())
+		return
+	}
+
+	// Actualizar el balance espejo en PostgreSQL (lectura rápida para el dashboard)
 	if err := h.DB.UpdateBalance(account.ID, req.Amount); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error actualizando balance")
 		return
 	}
 
-	// Registrar transacción
 	if err := h.DB.CreateTransaction("EXTERNAL", account.ID, req.Amount, "deposit", req.Description); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error registrando transacción")
 		return
@@ -73,7 +87,6 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Obtener cuenta
 	accounts, err := h.DB.GetAccountsByUserID(userID)
 	if err != nil || len(accounts) == 0 {
 		respondError(w, http.StatusNotFound, "Cuenta no encontrada")
@@ -82,19 +95,26 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	account := accounts[0]
 
-	// Verificar saldo suficiente
 	if account.Balance < req.Amount {
 		respondError(w, http.StatusBadRequest, "Saldo insuficiente")
 		return
 	}
 
-	// Actualizar balance (negativo para restar)
+	amountCents := uint64(req.Amount * 100)
+	tbAccountID := repository.AccountIDFromString(account.ID)
+	transferID := repository.AccountIDFromString(account.ID + "-" + uuidNow())
+
+	// TigerBeetle valida automáticamente que haya saldo suficiente (cuentas no pueden ir negativas por defecto)
+	if err := h.TbDB.Withdraw(tbAccountID, amountCents, transferID); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error registrando retiro contable: "+err.Error())
+		return
+	}
+
 	if err := h.DB.UpdateBalance(account.ID, -req.Amount); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error actualizando balance")
 		return
 	}
 
-	// Registrar transacción
 	if err := h.DB.CreateTransaction(account.ID, "EXTERNAL", req.Amount, "withdrawal", req.Description); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error registrando transacción")
 		return

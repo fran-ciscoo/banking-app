@@ -17,10 +17,13 @@ services:
       retries: 5
 
   tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle:0.15.3
+    image: ghcr.io/tigerbeetle/tigerbeetle:0.17.7
     container_name: banking_tigerbeetle
     user: root
     privileged: true
+    networks:
+      default:
+        ipv4_address: 172.28.0.10
     ports:
       - "3000:3000"
     volumes:
@@ -47,6 +50,7 @@ services:
   backend:
     build: ./backend
     container_name: banking_backend
+    privileged: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,7 +60,7 @@ services:
       PORT: 8080
       DATABASE_URL: postgres://postgres:password@postgres:5432/banking?sslmode=disable
       JWT_SECRET: mi-secreto-super-seguro-2024
-      TIGERBEETLE_ADDR: tigerbeetle:3000
+      TIGERBEETLE_ADDR: 172.28.0.10:3000
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       MCP_SERVER_URL: http://mcp-server:9090
     ports:
@@ -73,3 +77,10 @@ services:
 volumes:
   postgres_data:
   tigerbeetle_data:
+    external: true
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

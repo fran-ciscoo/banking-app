@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/fran-ciscoo/banking-app/internal/models"
+	"github.com/fran-ciscoo/banking-app/internal/repository"
 	"github.com/fran-ciscoo/banking-app/pkg/config"
 )
 
@@ -41,14 +42,23 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Crear cuenta bancaria automáticamente
-	accountID := fmt.Sprintf("4001-%04d-%04d-%04d",
-		time.Now().UnixNano()%9999,
-		time.Now().UnixNano()%9999,
-		time.Now().UnixNano()%9999,
+	accountUUID := uuid.New().String()
+	accountID := fmt.Sprintf("4001-%s-%s-%s",
+		accountUUID[0:4],
+		accountUUID[4:8],
+		accountUUID[9:13],
 	)
 
 	if err := h.DB.CreateAccount(accountID, userID, "checking"); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error creando cuenta bancaria")
+		return
+	}
+
+	tbAccountID := repository.AccountIDFromString(accountID)
+	fmt.Printf("Creando cuenta TigerBeetle: accountID=%s -> tbAccountID=%d\n", accountID, tbAccountID)
+	if err := h.TbDB.CreateAccount(tbAccountID); err != nil {
+		fmt.Printf("ERROR TigerBeetle: %v\n", err)
+		respondError(w, http.StatusInternalServerError, "Error creando cuenta contable: "+err.Error())
 		return
 	}
 
