@@ -109,7 +109,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"exp":     time.Now().Add(20 * time.Minute).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
