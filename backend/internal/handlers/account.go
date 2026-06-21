@@ -22,14 +22,21 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 
 	accounts, err := h.DB.GetAccountsByUserID(userID)
 	if err != nil {
-		fmt.Println("ERROR obteniendo cuentas:", err)
 		respondError(w, http.StatusInternalServerError, "Error obteniendo cuentas")
 		return
 	}
 
+	// Sobrescribir el balance con el valor real de TigerBeetle (fuente de verdad financiera)
+	for i := range accounts {
+		tbAccountID := repository.AccountIDFromString(accounts[i].ID)
+		balanceCents, err := h.TbDB.GetBalance(tbAccountID)
+		if err == nil {
+			accounts[i].Balance = float64(balanceCents) / 100
+		}
+	}
+
 	user, err := h.DB.GetUserByID(userID)
 	if err != nil {
-		fmt.Println("ERROR obteniendo usuario:", err)
 		respondError(w, http.StatusInternalServerError, "Error obteniendo usuario")
 		return
 	}

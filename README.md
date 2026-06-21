@@ -8,8 +8,8 @@ Sistema de banca en línea con autenticación, gestión de cuentas, transaccione
 |------|------------|
 | Backend | Go (Chi router) |
 | Frontend | Vue 3 + Vite + Tailwind CSS |
-| Base de datos transaccional | PostgreSQL |
-| Base de datos financiera | TigerBeetle |
+| Base de datos de usuarios | PostgreSQL |
+| Motor financiero | TigerBeetle |
 | IA / Chat | OpenRouter (LLM) + MCP (Go SDK oficial) |
 | Autenticación | JWT + bcrypt |
 | Infraestructura | Docker + Docker Compose |
@@ -22,13 +22,14 @@ El sistema está compuesto por **5 servicios** orquestados con Docker Compose:
 ┌─────────────┐     ┌─────────────┐     ┌──────────────┐
 │  Frontend   │────▶│   Backend   │────▶│  PostgreSQL  │
 │  Vue (nginx)│     │     Go      │     │ (usuarios,   │
-│  :5173      │     │   :8080     │     │  cuentas,    │
-└─────────────┘     └──────┬──────┘     │  transacc.)  │
+│  :5173      │     │   :8080     │     │  metadatos   │
+└─────────────┘     └──────┬──────┘     │  de cuentas) │
                             │            └──────────────┘
-                            │ (cliente MCP)
-                            ▼
+                            ├──────────────────┐
+                            │ (cliente MCP)     │ (cliente TigerBeetle)
+                            ▼                   ▼
                      ┌─────────────┐     ┌──────────────┐
-                     │ MCP Server  │     │ TigerBeetle  │
+                     │ MCP Server  │────▶│ TigerBeetle  │
                      │     Go      │     │   :3000      │
                      │   :9090     │     └──────────────┘
                      └──────┬──────┘
@@ -40,11 +41,27 @@ El sistema está compuesto por **5 servicios** orquestados con Docker Compose:
                      └─────────────┘
 ```
 
-- **Backend (Go):** expone la API REST, maneja autenticación JWT y actúa como **cliente MCP**.
-- **MCP Server (Go):** expone las operaciones bancarias (`get_balance`, `get_history`, `deposit`, `withdraw`, `transfer`) como *tools* MCP, usando el [SDK oficial de Go](https://github.com/modelcontextprotocol/go-sdk).
-- **Chat con IA:** el backend recibe el mensaje del usuario, lo envía a un LLM vía OpenRouter junto con las tools disponibles del servidor MCP. El modelo decide qué operación ejecutar, y el backend la dispara a través del cliente MCP.
+### Arquitectura dual de datos
 
-> **Nota sobre TigerBeetle:** el contenedor de TigerBeetle está configurado y corriendo en el `docker-compose.yml`, listo para integrarse como motor contable. Actualmente las operaciones financieras (depósitos, retiros, transferencias) se procesan sobre PostgreSQL.
+- **PostgreSQL** almacena usuarios, credenciales, y los metadatos de cada cuenta (nickname, tipo, a qué usuario pertenece). Es la fuente de verdad para todo lo que **no** es dinero.
+- **TigerBeetle** es la fuente de verdad financiera: cada cuenta bancaria tiene una cuenta contable espejo en TigerBeetle (su ID se deriva determinísticamente del ID de cuenta en Postgres mediante un hash SHA-256). Todos los depósitos, retiros y transferencias se registran como `transfers` de doble entrada en TigerBeetle, y el balance mostrado al usuario se lee **en tiempo real** directamente desde TigerBeetle, no desde una copia en Postgres.
+- Existe una cuenta especial `EXTERNAL` (ID `1`) en TigerBeetle que representa dinero entrando o saliendo del sistema bancario (depósitos y retiros en efectivo).
+
+### Backend como cliente dual
+
+El backend Go mantiene dos conexiones simultáneas:
+1. **Cliente PostgreSQL** — para usuarios y metadatos de cuentas.
+2. **Cliente TigerBeetle** — para todas las operaciones financieras y lectura de balances.
+
+Además, el backend actúa como **cliente MCP**, conectándose al servidor MCP independiente para que el chat con IA pueda ejecutar operaciones bancarias reales.
+
+### Chat con IA (MCP real)
+
+- **MCP Server (Go):** expone las operaciones bancarias (`get_balance`, `get_history`, `deposit`, `withdraw`, `transfer`) como *tools* MCP, usando el [SDK oficial de Go](https://github.com/modelcontextprotocol/go-sdk). Este servidor también está conectado directamente a TigerBeetle, por lo que las operaciones que ejecuta el chat son igual de reales que las del dashboard.
+- El backend recibe el mensaje del usuario, lo envía a un LLM vía OpenRouter junto con las tools disponibles del servidor MCP. El modelo decide qué operación ejecutar, y el backend la dispara a través del cliente MCP.
+- **Confirmación obligatoria:** antes de ejecutar cualquier depósito, retiro o transferencia, el asistente describe la operación y pide confirmación explícita al usuario en el mismo chat. Solo ejecuta la tool tras una respuesta afirmativa.
+- **Memoria de conversación:** el frontend envía el historial completo de mensajes en cada request, permitiendo que el modelo recuerde el contexto (por ejemplo, la operación pendiente de confirmar).
+- **Restricción de seguridad:** el chat con IA solo puede ejecutar transferencias entre cuentas del mismo usuario autenticado. Las transferencias a terceros deben hacerse desde el formulario normal del dashboard.
 
 ## Cómo levantar el proyecto
 
@@ -82,6 +99,32 @@ Esto levanta:
 
 Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
 
+## Datos de prueba
+
+El proyecto incluye un script de carga (`seed`) que inserta una muestra representativa de usuarios, cuentas y transacciones —tomada del JSON oficial de datos de prueba— directamente en PostgreSQL y TigerBeetle, usando la misma lógica de IDs determinísticos que usa el backend.
+
+### Ejecutar la carga
+
+Con el sistema ya levantado (`docker compose up -d`):
+
+```bash
+docker compose --profile seed run --rm seed
+```
+
+Esto crea **10 usuarios**, **17 cuentas** (con sus saldos iniciales reales en TigerBeetle) y **8 transacciones** de transferencia entre ellas. Al finalizar, el script imprime un usuario de ejemplo para iniciar sesión:
+
+```
+Email: ihernandez@email.com
+Password: Isabel2024!
+```
+
+El servicio `seed` usa Docker Compose **profiles**, por lo que nunca se levanta automáticamente con `docker compose up` — solo se ejecuta cuando se invoca explícitamente con `--profile seed`.
+
+Archivos relevantes:
+- `database/sample-data.json` — muestra de datos extraída del dataset oficial
+- `database/seed.go` — script de carga
+- `database/seed.Dockerfile` — imagen específica para ejecutar el seed dentro del entorno Docker (necesario porque el cliente nativo de TigerBeetle requiere el mismo entorno Linux/`io_uring` que el resto de los servicios)
+
 ## Funcionalidades
 
 ### Autenticación
@@ -91,26 +134,27 @@ Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
 - Middleware de autenticación en rutas protegidas
 
 ### Gestión de cuentas
-- Creación de cuenta bancaria automática al registrarse
+- Creación de cuenta bancaria automática al registrarse, con su cuenta contable espejo en TigerBeetle
 - Soporte para múltiples cuentas por usuario (corriente / ahorros)
 - Edición de nickname de cuenta
-- Eliminación de cuenta (solo si el saldo es $0)
+- Eliminación de cuenta (solo si el saldo en TigerBeetle es $0)
 
-### Transacciones
+### Transacciones (procesadas en TigerBeetle)
 - Depósito
-- Retiro (con validación de saldo)
-- Transferencia entre cuentas (propias o de terceros)
-- Historial de transacciones por usuario (todas sus cuentas)
+- Retiro (TigerBeetle valida automáticamente que haya saldo suficiente; las cuentas no pueden ir negativas por defecto)
+- Transferencia entre cuentas (propias o de terceros, según el canal usado)
+- Historial de transacciones por usuario o filtrado por cuenta
 
 ### Chat con IA (MCP)
 El usuario puede interactuar en lenguaje natural desde un widget de chat flotante en el dashboard:
 
 - *"¿Cuánto dinero tengo?"*
 - *"Deposita 50 dólares a mi cuenta de ahorros"*
-- *"Transfiere 20 dólares a la cuenta 4001-XXXX-XXXX-XXXX"*
+- *"Transfiere 20 dólares de mi cuenta corriente a mi cuenta de ahorros"*
 - *"Muéstrame mis últimas transacciones"*
+- *"¿Por qué no puedo cerrar mi cuenta?"*
 
-El LLM interpreta la intención, llama a la tool MCP correspondiente, y responde en lenguaje natural con el resultado real de la operación.
+El LLM interpreta la intención, confirma la operación antes de ejecutarla, llama a la tool MCP correspondiente (que opera sobre TigerBeetle real), y responde en lenguaje natural con el resultado.
 
 ## Estructura del proyecto
 
@@ -121,11 +165,11 @@ banking-app/
 │   ├── internal/
 │   │   ├── handlers/     # Controladores HTTP
 │   │   ├── services/     # Lógica de negocio, cliente MCP, OpenRouter
-│   │   ├── repository/   # Acceso a PostgreSQL
+│   │   ├── repository/   # Acceso a PostgreSQL y TigerBeetle
 │   │   └── models/       # Structs de datos
 │   └── pkg/config/       # Configuración por variables de entorno
 ├── mcp-server/           # Servidor MCP independiente
-│   ├── internal/         # Repository y definición de tools
+│   ├── internal/         # Repository, cliente TigerBeetle y definición de tools
 │   └── main.go
 ├── frontend/             # SPA en Vue 3
 │   └── src/
@@ -133,8 +177,13 @@ banking-app/
 │       ├── components/   # ChatWidget y otros componentes
 │       ├── stores/       # Pinia (auth, account)
 │       └── router/       # Vue Router
-├── database/             # Datos de prueba
-└── docker-compose.yml    # Orquestación de los 5 servicios
+├── database/             # Scripts SQL, inicialización de TigerBeetle y datos de prueba
+│   ├── schema.sql
+│   ├── init-tigerbeetle.sh
+│   ├── seed.go
+│   ├── seed.Dockerfile
+│   └── sample-data.json
+└── docker-compose.yml    # Orquestación de los 5 servicios + servicio de seed opcional
 ```
 
 ## Endpoints principales
@@ -144,15 +193,15 @@ banking-app/
 | POST | `/api/auth/register` | Registro de usuario |
 | POST | `/api/auth/login` | Login |
 | POST | `/api/auth/logout` | Logout |
-| GET | `/api/account` | Cuentas del usuario |
-| POST | `/api/account/create` | Crear cuenta nueva |
+| GET | `/api/account` | Cuentas del usuario (balance leído de TigerBeetle) |
+| POST | `/api/account/create` | Crear cuenta nueva (Postgres + TigerBeetle) |
 | PUT | `/api/account/{id}/nickname` | Editar nombre de cuenta |
-| DELETE | `/api/account/{id}` | Eliminar cuenta (saldo $0) |
-| POST | `/api/transactions/deposit` | Depositar |
-| POST | `/api/transactions/withdraw` | Retirar |
-| POST | `/api/transactions/transfer` | Transferir |
-| GET | `/api/transactions/history` | Historial de transacciones |
-| POST | `/api/chat` | Chat con el asistente bancario IA |
+| DELETE | `/api/account/{id}` | Eliminar cuenta (saldo $0 en TigerBeetle) |
+| POST | `/api/transactions/deposit` | Depositar (vía TigerBeetle) |
+| POST | `/api/transactions/withdraw` | Retirar (vía TigerBeetle) |
+| POST | `/api/transactions/transfer` | Transferir (vía TigerBeetle) |
+| GET | `/api/transactions/history` | Historial, con filtro opcional por cuenta |
+| POST | `/api/chat` | Chat con el asistente bancario IA (vía MCP) |
 
 ## Desarrollo local (sin Docker)
 
@@ -176,11 +225,17 @@ pnpm install
 pnpm run dev
 ```
 
-Cada carpeta (`backend/`, `mcp-server/`) requiere su propio archivo `.env` con `DATABASE_URL`, `JWT_SECRET`, `OPENROUTER_API_KEY`, etc. Revisa `pkg/config/config.go` para ver las variables soportadas.
+Cada carpeta (`backend/`, `mcp-server/`) requiere su propio archivo `.env` con `DATABASE_URL`, `JWT_SECRET`, `TIGERBEETLE_ADDR`, `OPENROUTER_API_KEY`, etc. Revisa `pkg/config/config.go` para ver las variables soportadas.
+
+**Nota sobre TigerBeetle y CGO:** el cliente Go de TigerBeetle usa CGO con una librería nativa que requiere `io_uring`. En Windows con Docker Desktop/WSL2 esto puede requerir habilitar `kernel.io_uring_disabled=0` y correr los contenedores con `privileged: true` (ya configurado en `docker-compose.yml`). Por este motivo, scripts que usan el cliente de TigerBeetle (como `seed.go`) están diseñados para ejecutarse **dentro** de un contenedor Docker, no directamente en el host.
 
 ## Decisiones técnicas y notas
 
 - **Moneda:** todas las cuentas operan en USD.
+- **Arquitectura dual real:** se optó por una separación estricta de responsabilidades — PostgreSQL nunca almacena el balance autoritativo, solo TigerBeetle. Esto cumple el espíritu del requisito de "arquitectura dual" de la prueba: dos bases de datos, cada una responsable de un dominio distinto.
+- **IDs determinísticos:** los IDs de cuenta de TigerBeetle (`uint64`) se derivan de los IDs de cuenta de PostgreSQL (`string`, formato `4001-XXXX-XXXX-XXXX`) mediante SHA-256, garantizando que ambos sistemas siempre referencien la misma cuenta sin necesidad de una tabla de mapeo adicional.
+- **Uint128 y endianness:** TigerBeetle representa los valores de 128 bits (`Uint128`) en formato little-endian a nivel de bytes. Al convertir a `big.Int` de Go (que espera big-endian), es necesario invertir el orden de los bytes antes de la conversión; de lo contrario, los balances se calculan incorrectamente.
 - **MCP real:** se optó por implementar un servidor MCP independiente (en vez de function calling directo) para cumplir fielmente el protocolo, permitiendo que el backend actúe como cliente MCP estándar, reutilizable por cualquier otro cliente compatible con el protocolo.
 - **Modelo de IA:** se usa un modelo gratuito de OpenRouter compatible con tool calling, configurable en `internal/services/openrouter.go`.
-- **Seguridad:** las contraseñas se almacenan con bcrypt; los tokens JWT expiran en 24 horas; los archivos `.env` están excluidos del control de versiones.
+- **Datos de prueba:** se cargó una muestra representativa (no el dataset completo de 1000 usuarios) para mantener tiempos de carga y pruebas manejables; el script `seed.go` es fácilmente extensible a un dataset mayor ajustando el archivo JSON de entrada.
+- **Seguridad:** las contraseñas se almacenan con bcrypt; los tokens JWT expiran en 24 horas; los archivos `.env` están excluidos del control de versiones; el chat con IA tiene restricciones explícitas sobre qué operaciones puede ejecutar y bajo qué condiciones.

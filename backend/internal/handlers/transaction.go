@@ -47,8 +47,9 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	transferID := repository.AccountIDFromString(account.ID + "-" + uuidNow())
 
 	// Registrar el depósito en TigerBeetle (motor contable real)
-	if err := h.TbDB.Deposit(tbAccountID, amountCents, transferID); err != nil {
-		respondError(w, http.StatusInternalServerError, "Error registrando depósito contable: "+err.Error())
+	depositErr := h.TbDB.Deposit(tbAccountID, amountCents, transferID)
+	if depositErr != nil {
+		respondError(w, http.StatusInternalServerError, "Error registrando depósito contable: "+depositErr.Error())
 		return
 	}
 
@@ -104,9 +105,9 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	tbAccountID := repository.AccountIDFromString(account.ID)
 	transferID := repository.AccountIDFromString(account.ID + "-" + uuidNow())
 
-	// TigerBeetle valida automáticamente que haya saldo suficiente (cuentas no pueden ir negativas por defecto)
-	if err := h.TbDB.Withdraw(tbAccountID, amountCents, transferID); err != nil {
-		respondError(w, http.StatusInternalServerError, "Error registrando retiro contable: "+err.Error())
+	// Registrar el depósito en TigerBeetle (motor contable real)
+	if err := h.TbDB.Deposit(tbAccountID, amountCents, transferID); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error registrando depósito contable: "+err.Error())
 		return
 	}
 

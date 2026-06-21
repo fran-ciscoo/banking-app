@@ -71,13 +71,22 @@ func (t *TigerBeetleDB) GetBalance(id uint64) (uint64, error) {
 	}
 
 	creditsBytes := accounts[0].CreditsPosted.Bytes()
-	debitsBytes  := accounts[0].DebitsPosted.Bytes()
+	debitsBytes := accounts[0].DebitsPosted.Bytes()
+
+	reverseBytes(creditsBytes[:])
+	reverseBytes(debitsBytes[:])
 
 	credits := new(big.Int).SetBytes(creditsBytes[:])
-	debits  := new(big.Int).SetBytes(debitsBytes[:])
+	debits := new(big.Int).SetBytes(debitsBytes[:])
 	balance := new(big.Int).Sub(credits, debits)
 
 	return balance.Uint64(), nil
+}
+
+func reverseBytes(b []byte) {
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
 }
 
 func (t *TigerBeetleDB) Deposit(toAccountID uint64, amount uint64, transferID uint64) error {
