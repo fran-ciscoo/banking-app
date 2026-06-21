@@ -112,7 +112,22 @@ Con el sistema ya levantado (`docker compose up -d`):
 docker compose --profile seed run --rm seed
 ```
 
-Esto crea **10 usuarios**, **17 cuentas** (con sus saldos iniciales reales en TigerBeetle) y **8 transacciones** de transferencia entre ellas. Al finalizar, el script imprime un usuario de ejemplo para iniciar sesión.
+Esto crea **10 usuarios**, **17 cuentas** (con sus saldos iniciales reales en TigerBeetle) y **8 transacciones** de transferencia entre ellas.
+
+### Credenciales de prueba
+
+Tras ejecutar el seed, puedes iniciar sesión con cualquiera de los 10 usuarios generados. Ejemplo:
+
+```
+Email: ihernandez@email.com
+Password: Isabel2024!
+```
+```
+Email: miguel.perez@email.com
+Password: Miguel2024!
+```
+
+El script imprime en consola un usuario de ejemplo al finalizar la carga; el email exacto puede variar según el orden en que se procesó el JSON. Ninguno de los usuarios de prueba tiene 2FA activado por defecto, así que el login es de un solo paso.
 
 El servicio `seed` usa Docker Compose **profiles**, por lo que nunca se levanta automáticamente con `docker compose up` — solo se ejecuta cuando se invoca explícitamente con `--profile seed`.
 
