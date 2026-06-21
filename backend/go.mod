@@ -15,6 +15,11 @@ require (
 )
 
 require (
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
+	github.com/pquerna/otp v1.5.0 // indirect
+)
+
+require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/segmentio/asm v1.1.3 // indirect

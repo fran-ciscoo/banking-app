@@ -24,13 +24,35 @@ export const useAuthStore = defineStore('auth', () => {
     delete axios.defaults.headers.common['Authorization']
   }
 
-  async function login(email, password) {
+  async function login(email, password, code = '') {
     const response = await axios.post('http://localhost:8080/api/auth/login', {
       email,
-      password
+      password,
+      code
     })
+
+    // Si el backend pide 2FA, no hay token todavía
+    if (response.data.requires_2fa) {
+      return response.data
+    }
+
     const { token: tokenValue, ...userData } = response.data
     setAuth(userData, tokenValue)
+    return response.data
+  }
+
+  async function setup2FA() {
+    const response = await axios.post('http://localhost:8080/api/2fa/setup')
+    return response.data
+  }
+
+  async function confirm2FA(code) {
+    const response = await axios.post('http://localhost:8080/api/2fa/confirm', { code })
+    return response.data
+  }
+
+  async function disable2FA() {
+    const response = await axios.post('http://localhost:8080/api/2fa/disable')
     return response.data
   }
 
@@ -62,6 +84,9 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     login,
     register,
-    logout
+    logout, 
+    setup2FA,
+    confirm2FA,
+    disable2FA
   }
 })

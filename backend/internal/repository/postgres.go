@@ -28,11 +28,13 @@ func NewPostgresDB(databaseURL string) (*PostgresDB, error) {
 func (p *PostgresDB) CreateTables() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
-		id         UUID PRIMARY KEY,
-		email      VARCHAR(255) UNIQUE NOT NULL,
-		password   VARCHAR(255) NOT NULL,
-		full_name  VARCHAR(255) NOT NULL,
-		created_at TIMESTAMP DEFAULT NOW()
+		id              UUID PRIMARY KEY,
+		email           VARCHAR(255) UNIQUE NOT NULL,
+		password        VARCHAR(255) NOT NULL,
+		full_name       VARCHAR(255) NOT NULL,
+		totp_secret     VARCHAR(255),
+		totp_enabled    BOOLEAN DEFAULT FALSE,
+		created_at      TIMESTAMP DEFAULT NOW()
 	);
 
 	CREATE TABLE IF NOT EXISTS accounts (
@@ -65,6 +67,13 @@ func (p *PostgresDB) CreateTables() error {
 	alterQuery := `ALTER TABLE accounts ADD COLUMN IF NOT EXISTS nickname VARCHAR(100);`
 	p.DB.Exec(alterQuery)
 
+	// Migración: agregar columnas de 2FA si no existen
+	alterTotpQuery := `
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(255);
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;
+	`
+	p.DB.Exec(alterTotpQuery)
+
 	// Migración: actualizar moneda a USD
 	updateCurrencyQuery := `UPDATE accounts SET currency = 'USD' WHERE currency = 'HNL';`
 	p.DB.Exec(updateCurrencyQuery)
@@ -86,7 +95,7 @@ func (p *PostgresDB) CreateUser(id, email, password, fullName string) error {
 
 func (p *PostgresDB) GetUserByEmail(email string) (*UserRecord, error) {
 	var user UserRecord
-	query := `SELECT id, email, password, full_name, created_at FROM users WHERE email = $1`
+	query := `SELECT id, email, password, full_name, totp_secret, totp_enabled, created_at FROM users WHERE email = $1`
 	err := p.DB.Get(&user, query, email)
 	if err != nil {
 		return nil, fmt.Errorf("usuario no encontrado: %w", err)
@@ -96,7 +105,7 @@ func (p *PostgresDB) GetUserByEmail(email string) (*UserRecord, error) {
 
 func (p *PostgresDB) GetUserByID(id string) (*UserRecord, error) {
 	var user UserRecord
-	query := `SELECT id, email, password, full_name, created_at FROM users WHERE id = $1`
+	query := `SELECT id, email, password, full_name, totp_secret, totp_enabled, created_at FROM users WHERE id = $1`
 	err := p.DB.Get(&user, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("usuario no encontrado: %w", err)
@@ -243,14 +252,34 @@ func (p *PostgresDB) GetTransactionsByAccountID(accountID string, limit int) ([]
 	return txs, nil
 }
 
+func (p *PostgresDB) SetTotpSecret(userID, secret string) error {
+	query := `UPDATE users SET totp_secret = $1 WHERE id = $2`
+	_, err := p.DB.Exec(query, secret, userID)
+	if err != nil {
+		return fmt.Errorf("error guardando secreto TOTP: %w", err)
+	}
+	return nil
+}
+
+func (p *PostgresDB) EnableTotp(userID string, enabled bool) error {
+	query := `UPDATE users SET totp_enabled = $1 WHERE id = $2`
+	_, err := p.DB.Exec(query, enabled, userID)
+	if err != nil {
+		return fmt.Errorf("error actualizando estado TOTP: %w", err)
+	}
+	return nil
+}
+
 // ---- Structs internos para leer de la DB ----
 
 type UserRecord struct {
-	ID        string `db:"id" json:"id"`
-	Email     string `db:"email" json:"email"`
-	Password  string `db:"password" json:"-"`
-	FullName  string `db:"full_name" json:"full_name"`
-	CreatedAt string `db:"created_at" json:"created_at"`
+	ID          string  `db:"id" json:"id"`
+	Email       string  `db:"email" json:"email"`
+	Password    string  `db:"password" json:"-"`
+	FullName    string  `db:"full_name" json:"full_name"`
+	TotpSecret  *string `db:"totp_secret" json:"-"`
+	TotpEnabled bool    `db:"totp_enabled" json:"totp_enabled"`
+	CreatedAt   string  `db:"created_at" json:"created_at"`
 }
 
 type AccountRecord struct {

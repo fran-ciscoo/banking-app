@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/fran-ciscoo/banking-app/internal/models"
@@ -76,20 +77,34 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Buscar usuario
 	user, err := h.DB.GetUserByEmail(req.Email)
 	if err != nil {
 		respondError(w, http.StatusUnauthorized, "Email o contraseña incorrectos")
 		return
 	}
 
-	// Verificar contraseña
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		respondError(w, http.StatusUnauthorized, "Email o contraseña incorrectos")
 		return
 	}
 
-	// Generar JWT
+	// Si el usuario tiene 2FA activado, no entregamos el token todavía:
+	// pedimos el código TOTP en un segundo paso.
+	if user.TotpEnabled {
+		if req.Code == "" {
+			respondJSON(w, http.StatusOK, map[string]interface{}{
+				"requires_2fa": true,
+				"message":      "Ingresa el código de tu app de autenticación",
+			})
+			return
+		}
+
+		if user.TotpSecret == nil || !totp.Validate(req.Code, *user.TotpSecret) {
+			respondError(w, http.StatusUnauthorized, "Código de verificación incorrecto")
+			return
+		}
+	}
+
 	cfg := config.Load()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID,
@@ -104,10 +119,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"token":     tokenString,
-		"user_id":   user.ID,
-		"full_name": user.FullName,
-		"email":     user.Email,
+		"token":         tokenString,
+		"user_id":       user.ID,
+		"full_name":     user.FullName,
+		"email":         user.Email,
+		"totp_enabled":  user.TotpEnabled,
 	})
 }
 

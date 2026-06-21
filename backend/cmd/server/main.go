@@ -81,6 +81,9 @@ func main() {
 		r.Post("/api/transactions/withdraw", h.Withdraw)
 		r.Post("/api/transactions/transfer", h.Transfer)
 		r.Get("/api/transactions/history", h.GetHistory)
+		r.Post("/api/2fa/setup", h.Setup2FA)
+		r.Post("/api/2fa/confirm", h.Confirm2FA)
+		r.Post("/api/2fa/disable", h.Disable2FA)
 
 		if chatHandler != nil {
 			r.Post("/api/chat", chatHandler.Chat)

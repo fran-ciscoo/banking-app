@@ -13,6 +13,12 @@ const routes = [
     meta: { requiresGuest: true }
   },
   {
+    path: '/security',
+    name: 'Security',
+    component: () => import('../pages/securityPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/register',
     name: 'Register',
     component: () => import('../pages/registerPage.vue'),
