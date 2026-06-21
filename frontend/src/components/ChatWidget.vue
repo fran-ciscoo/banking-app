@@ -3,7 +3,7 @@
   <button
     v-if="!isOpen"
     @click="isOpen = true"
-    class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-colors z-40"
+    class="fixed bottom-6 right-6 bg-brand-violet hover:bg-brand-darkest text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-colors z-40"
   >
     💬
   </button>
@@ -42,7 +42,7 @@
         class="flex"
       >
         <div
-          :class="msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-200'"
+          :class="msg.role === 'user' ? 'bg-brand-violet text-white' : 'bg-gray-800 text-gray-200'"
           class="max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
         >
           {{ msg.content }}
@@ -62,12 +62,12 @@
         type="text"
         placeholder="Escribe tu mensaje..."
         :disabled="loading"
-        class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+        class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
       />
       <button
         type="submit"
         :disabled="loading || !inputText.trim()"
-        class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+        class="bg-brand-violet hover:bg-brand-darkest disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
       >
         Enviar
       </button>

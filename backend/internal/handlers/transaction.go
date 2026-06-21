@@ -39,7 +39,17 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account := accounts[0]
+	var account *repository.AccountRecord
+	for i := range accounts {
+		if accounts[i].ID == req.AccountID {
+			account = &accounts[i]
+			break
+		}
+	}
+	if account == nil {
+		respondError(w, http.StatusBadRequest, "Selecciona una cuenta válida")
+		return
+	}
 
 	// Convertir el monto a centavos (TigerBeetle trabaja con enteros, sin decimales)
 	amountCents := uint64(req.Amount * 100)
@@ -94,7 +104,17 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account := accounts[0]
+	var account *repository.AccountRecord
+	for i := range accounts {
+		if accounts[i].ID == req.AccountID {
+			account = &accounts[i]
+			break
+		}
+	}
+	if account == nil {
+		respondError(w, http.StatusBadRequest, "Selecciona una cuenta válida")
+		return
+	}
 
 	if account.Balance < req.Amount {
 		respondError(w, http.StatusBadRequest, "Saldo insuficiente")
@@ -106,8 +126,9 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	transferID := repository.AccountIDFromString(account.ID + "-" + uuidNow())
 
 	// Registrar el depósito en TigerBeetle (motor contable real)
-	if err := h.TbDB.Deposit(tbAccountID, amountCents, transferID); err != nil {
-		respondError(w, http.StatusInternalServerError, "Error registrando depósito contable: "+err.Error())
+	// Registrar el retiro en TigerBeetle (motor contable real)
+	if err := h.TbDB.Withdraw(tbAccountID, amountCents, transferID); err != nil {
+		respondError(w, http.StatusInternalServerError, "Error registrando retiro contable: "+err.Error())
 		return
 	}
 
@@ -155,7 +176,18 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusNotFound, "Cuenta no encontrada")
 		return
 	}
-	fromAccount := accounts[0]
+
+	var fromAccount *repository.AccountRecord
+	for i := range accounts {
+		if accounts[i].ID == req.FromAccountID {
+			fromAccount = &accounts[i]
+			break
+		}
+	}
+	if fromAccount == nil {
+		respondError(w, http.StatusBadRequest, "Selecciona una cuenta de origen válida")
+		return
+	}
 
 	if fromAccount.ID == req.ToAccountID {
 		respondError(w, http.StatusBadRequest, "No puedes transferirte a ti mismo")

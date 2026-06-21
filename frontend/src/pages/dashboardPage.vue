@@ -2,61 +2,55 @@
   <div class="min-h-screen bg-gray-950 text-white">
 
     <!-- Navbar -->
-    <nav class="bg-gray-900 border-b border-gray-800 px-6 py-4">
-      <div class="max-w-6xl mx-auto flex items-center justify-between">
-        <h1 class="text-xl font-bold text-white">BankingApp</h1>
-        <div class="flex items-center gap-4">
-          <span class="text-gray-400 text-sm">{{ authStore.user?.full_name }}</span>
-          <router-link
-            to="/security"
-            class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm transition-colors"
-          >
+    <nav class="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-4">
+      <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
+        <h1 class="text-lg sm:text-xl font-bold text-white">BankingApp</h1>
+        <div class="flex items-center gap-2 sm:gap-4">
+          <span class="hidden md:inline text-gray-400 text-sm">{{ authStore.user?.full_name }}</span>
+          <router-link to="/security" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-colors">
             Seguridad
           </router-link>
-          <button
-            @click="handleLogout"
-            class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm transition-colors"
-          >
+          <button @click="handleLogout" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-colors">
             Cerrar sesión
           </button>
         </div>
       </div>
     </nav>
 
-    <div class="max-w-6xl mx-auto p-6 space-y-6">
+    <div class="max-w-6xl mx-auto p-6 pb-24 space-y-6">
 
       <!-- Balance card -->
-      <div class="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6">
-        <p class="text-blue-200 text-sm mb-1">Saldo disponible</p>
+      <div class="bg-gradient-to-r from-brand-violet to-brand-darkest rounded-2xl p-6">
+        <p class="text-white/70 text-sm mb-1">Saldo disponible</p>
         <h2 class="text-4xl font-bold text-white">
           {{ loading ? '...' : formatCurrency(totalBalance) }}
         </h2>
-        <p class="text-blue-200 text-sm mt-2">{{ accounts.length }} cuenta(s)</p>
+        <p class="text-white/70 text-sm mt-2">{{ accounts.length }} cuenta(s)</p>
       </div>
 
       <!-- Acciones rápidas -->
       <div class="grid grid-cols-3 gap-4">
         <router-link
-  to="/transactions?tab=deposit"
-  class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center hover:border-blue-500 transition-colors"
->
-  <div class="text-2xl mb-2">+</div>
-  <p class="text-sm text-gray-300">Depositar</p>
-</router-link>
-<router-link
-  to="/transactions?tab=withdraw"
-  class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center hover:border-blue-500 transition-colors"
->
-  <div class="text-2xl mb-2">-</div>
-  <p class="text-sm text-gray-300">Retirar</p>
-</router-link>
-<router-link
-  to="/transactions?tab=transfer"
-  class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center hover:border-blue-500 transition-colors"
->
-  <div class="text-2xl mb-2">→</div>
-  <p class="text-sm text-gray-300">Transferir</p>
-</router-link>
+          to="/transactions?tab=deposit"
+          class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center hover:border-brand-blue transition-colors"
+        >
+          <div class="text-2xl mb-2">+</div>
+          <p class="text-sm text-gray-300">Depositar</p>
+        </router-link>
+        <router-link
+          to="/transactions?tab=withdraw"
+          class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center hover:border-brand-blue transition-colors"
+        >
+          <div class="text-2xl mb-2">-</div>
+          <p class="text-sm text-gray-300">Retirar</p>
+        </router-link>
+        <router-link
+          to="/transactions?tab=transfer"
+          class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center hover:border-brand-blue transition-colors"
+        >
+          <div class="text-2xl mb-2">→</div>
+          <p class="text-sm text-gray-300">Transferir</p>
+        </router-link>
       </div>
 
       <!-- Cuentas -->
@@ -65,7 +59,7 @@
           <h3 class="text-lg font-semibold">Mis cuentas</h3>
           <button
             @click="showCreateAccount = true"
-            class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+            class="bg-brand-violet hover:bg-brand-darkest text-white text-sm px-4 py-2 rounded-lg transition-colors"
           >
             + Nueva cuenta
           </button>
@@ -86,7 +80,7 @@
                   v-model="editingNickname"
                   @keyup.enter="saveNickname(account.id)"
                   type="text"
-                  class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+                  class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-brand-blue"
                   placeholder="Nombre de la cuenta"
                 />
                 <button @click="saveNickname(account.id)" class="text-green-400 hover:text-green-300 text-sm">✓</button>
@@ -95,14 +89,14 @@
               <div v-else class="flex items-center gap-2">
                 <router-link
                   :to="`/history?account=${account.id}`"
-                  class="text-sm font-medium text-white hover:text-blue-400 transition-colors"
+                  class="text-sm font-medium text-white hover:text-brand-blue transition-colors"
                 >
                   {{ account.nickname || (account.type === 'checking' ? 'Cuenta corriente' : 'Cuenta de ahorros') }}
                 </router-link>
                 <button @click="startEditNickname(account)" class="text-gray-500 hover:text-gray-300 text-xs">✎</button>
                 <button @click="handleDeleteAccount(account)" class="text-gray-500 hover:text-red-400 text-xs">🗑</button>
               </div>
-              <router-link :to="`/history?account=${account.id}`" class="text-xs text-gray-400 hover:text-blue-400 transition-colors">
+              <router-link :to="`/history?account=${account.id}`" class="text-xs text-gray-400 hover:text-brand-blue transition-colors">
                 {{ account.id }}
               </router-link>
             </div>
@@ -118,7 +112,7 @@
           <div class="space-y-3 mb-6">
             <button
               @click="selectedAccountType = 'checking'"
-              :class="selectedAccountType === 'checking' ? 'border-blue-500 bg-blue-600/10' : 'border-gray-700'"
+              :class="selectedAccountType === 'checking' ? 'border-brand-blue bg-brand-blue/10' : 'border-gray-700'"
               class="w-full border rounded-lg px-4 py-3 text-left transition-colors"
             >
               <p class="font-medium text-white">Cuenta corriente</p>
@@ -126,7 +120,7 @@
             </button>
             <button
               @click="selectedAccountType = 'savings'"
-              :class="selectedAccountType === 'savings' ? 'border-blue-500 bg-blue-600/10' : 'border-gray-700'"
+              :class="selectedAccountType === 'savings' ? 'border-brand-blue bg-brand-blue/10' : 'border-gray-700'"
               class="w-full border rounded-lg px-4 py-3 text-left transition-colors"
             >
               <p class="font-medium text-white">Cuenta de ahorros</p>
@@ -143,7 +137,7 @@
             <button
               @click="handleCreateAccount"
               :disabled="!selectedAccountType || creating"
-              class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+              class="flex-1 bg-brand-violet hover:bg-brand-darkest disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
             >
               {{ creating ? 'Creando...' : 'Crear cuenta' }}
             </button>
@@ -190,25 +184,26 @@
       <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Transacciones recientes</h3>
-          <router-link to="/history" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+          <router-link to="/history" class="bg-brand-violet hover:bg-brand-darkest text-white text-sm px-4 py-2 rounded-lg transition-colors">
             Ver todas
           </router-link>
         </div>
-        <div v-if="transactions.length === 0" class="text-gray-500 text-sm">
+        <div v-if="displayTransactions.length === 0" class="text-gray-500 text-sm">
           No hay transacciones recientes
         </div>
         <div v-else class="space-y-3">
           <div
-            v-for="tx in transactions.slice(0, 5)"
-            :key="tx.id"
+            v-for="tx in displayTransactions.slice(0, 5)"
+            :key="tx.displayId"
             class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0"
           >
             <div>
               <p class="text-sm text-white">{{ tx.description || tx.type }}</p>
               <p class="text-xs text-gray-500">{{ formatDate(tx.timestamp) }}</p>
+              <p class="text-xs text-brand-blue mt-0.5">{{ accountNameFor(tx.displayAccount) }}</p>
             </div>
-            <p :class="isIncoming(tx) ? 'text-green-400' : 'text-red-400'" class="font-medium text-sm">
-              {{ isIncoming(tx) ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
+            <p :class="tx.isIncoming ? 'text-green-400' : 'text-red-400'" class="font-medium text-sm">
+              {{ tx.isIncoming ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
             </p>
           </div>
         </div>
@@ -246,6 +241,48 @@ const editingNickname = ref('')
 const accountToDelete = ref(null)
 const deleting = ref(false)
 const deleteError = ref('')
+
+const displayTransactions = computed(() => {
+  const myAccountIds = accounts.value.map(a => a.id)
+  const result = []
+
+  for (const tx of transactions.value) {
+    const fromIsMine = myAccountIds.includes(tx.from_account)
+    const toIsMine = myAccountIds.includes(tx.to_account)
+
+    if (fromIsMine && toIsMine) {
+      // Transferencia entre cuentas propias: mostrar como dos movimientos
+      result.push({
+        ...tx,
+        displayId: tx.id + '-out',
+        displayAccount: tx.from_account,
+        isIncoming: false
+      })
+      result.push({
+        ...tx,
+        displayId: tx.id + '-in',
+        displayAccount: tx.to_account,
+        isIncoming: true
+      })
+    } else {
+      result.push({
+        ...tx,
+        displayId: tx.id,
+        displayAccount: toIsMine ? tx.to_account : tx.from_account,
+        isIncoming: toIsMine
+      })
+    }
+  }
+
+  // Reordenar por fecha, más reciente primero
+  return result.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+})
+
+function accountNameFor(accountId) {
+  const acc = accounts.value.find(a => a.id === accountId)
+  if (!acc) return ''
+  return acc.nickname || (acc.type === 'checking' ? 'Cuenta corriente' : 'Cuenta de ahorros')
+}
 
 function closeCreateAccount() {
   showCreateAccount.value = false

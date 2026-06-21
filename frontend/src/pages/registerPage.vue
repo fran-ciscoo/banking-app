@@ -16,7 +16,7 @@
             v-model="fullName"
             type="text"
             placeholder="Juan Pérez"
-            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
             required
           />
         </div>
@@ -27,7 +27,7 @@
             v-model="email"
             type="email"
             placeholder="tu@email.com"
-            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
             required
           />
         </div>
@@ -38,7 +38,7 @@
             v-model="password"
             type="password"
             placeholder="••••••••"
-            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
             required
           />
         </div>
@@ -49,7 +49,7 @@
             v-model="confirmPassword"
             type="password"
             placeholder="••••••••"
-            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
             required
           />
         </div>
@@ -67,7 +67,7 @@
         <button
           type="submit"
           :disabled="loading"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+          class="w-full bg-brand-violet hover:bg-brand-darkest disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
         >
           {{ loading ? 'Creando cuenta...' : 'Crear cuenta' }}
         </button>
@@ -75,7 +75,7 @@
 
       <p class="text-center text-gray-500 mt-6 text-sm">
         ¿Ya tienes cuenta?
-        <router-link to="/login" class="text-blue-400 hover:text-blue-300">Inicia sesión</router-link>
+        <router-link to="/login" class="text-brand-blue hover:text-brand-cyan">Inicia sesión</router-link>
       </p>
     </div>
   </div>

@@ -37,8 +37,9 @@ export const useAccountStore = defineStore('account', () => {
     }
   }
 
-  async function deposit(amount, description) {
+  async function deposit(accountId, amount, description) {
     const response = await axios.post('http://localhost:8080/api/transactions/deposit', {
+      account_id: accountId,
       amount,
       description
     })
@@ -46,8 +47,9 @@ export const useAccountStore = defineStore('account', () => {
     return response.data
   }
 
-  async function withdraw(amount, description) {
+  async function withdraw(accountId, amount, description) {
     const response = await axios.post('http://localhost:8080/api/transactions/withdraw', {
+      account_id: accountId,
       amount,
       description
     })
@@ -55,8 +57,9 @@ export const useAccountStore = defineStore('account', () => {
     return response.data
   }
 
-  async function transfer(toAccountId, amount, description) {
+  async function transfer(fromAccountId, toAccountId, amount, description) {
     const response = await axios.post('http://localhost:8080/api/transactions/transfer', {
+      from_account_id: fromAccountId,
       to_account_id: toAccountId,
       amount,
       description

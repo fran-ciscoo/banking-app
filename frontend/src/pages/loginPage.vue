@@ -19,7 +19,7 @@
               v-model="email"
               type="email"
               placeholder="tu@email.com"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
               required
             />
           </div>
@@ -30,7 +30,7 @@
               v-model="password"
               type="password"
               placeholder="••••••••"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue"
               required
             />
           </div>
@@ -45,7 +45,7 @@
               inputmode="numeric"
               maxlength="6"
               placeholder="123456"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-center text-2xl tracking-widest"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue text-center text-2xl tracking-widest"
               autofocus
             />
             <p class="text-xs text-gray-500 mt-2">Abre tu app de autenticación e ingresa el código de 6 dígitos.</p>
@@ -60,7 +60,7 @@
         <button
           type="submit"
           :disabled="loading"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+          class="w-full bg-brand-violet hover:bg-brand-darkest disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
         >
           {{ loading ? 'Verificando...' : (needsCode ? 'Verificar' : 'Iniciar sesión') }}
         </button>
@@ -77,7 +77,7 @@
 
       <p v-if="!needsCode" class="text-center text-gray-500 mt-6 text-sm">
         ¿No tienes cuenta?
-        <router-link to="/register" class="text-blue-400 hover:text-blue-300">Regístrate</router-link>
+        <router-link to="/register" class="text-brand-blue hover:text-brand-cyan">Regístrate</router-link>
       </p>
     </div>
   </div>

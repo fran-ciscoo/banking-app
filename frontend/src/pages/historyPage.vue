@@ -41,7 +41,7 @@
               <p class="text-sm font-medium text-white">{{ tx.description || typeLabel(tx.type) }}</p>
               <p class="text-xs text-gray-500">{{ formatDate(tx.timestamp) }}</p>
               <p class="text-xs text-gray-600">{{ tx.from_account }} → {{ tx.to_account }}</p>
-              <p v-if="!filterAccountId" class="text-xs text-blue-400 mt-1">{{ accountLabel(tx) }}</p>
+              <p v-if="!filterAccountId" class="text-xs text-brand-blue mt-1">{{ accountLabel(tx) }}</p>
             </div>
           </div>
           <p :class="amountClass(tx)" class="font-semibold">
@@ -54,7 +54,7 @@
       <button
         v-if="transactions.length >= limit"
         @click="loadMore"
-        class="w-full bg-gray-900 border border-gray-800 hover:border-gray-600 text-gray-400 py-3 rounded-xl text-sm transition-colors"
+        class="w-full bg-gray-900 border border-gray-800 hover:border-brand-blue text-gray-400 py-3 rounded-xl text-sm transition-colors"
       >
         Cargar más
       </button>
@@ -112,11 +112,17 @@ function typeLabel(type) {
 }
 
 function amountSign(tx) {
+  if (filterAccountId.value) {
+    return tx.to_account === filterAccountId.value ? '+' : '-'
+  }
   const myAccountIds = accounts.value.map(a => a.id)
   return myAccountIds.includes(tx.to_account) ? '+' : '-'
 }
 
 function amountClass(tx) {
+  if (filterAccountId.value) {
+    return tx.to_account === filterAccountId.value ? 'text-green-400' : 'text-red-400'
+  }
   const myAccountIds = accounts.value.map(a => a.id)
   return myAccountIds.includes(tx.to_account) ? 'text-green-400' : 'text-red-400'
 }

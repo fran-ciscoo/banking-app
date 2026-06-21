@@ -37,7 +37,7 @@
           <button
             @click="startSetup"
             :disabled="loading"
-            class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+            class="bg-brand-violet hover:bg-brand-darkest disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
           >
             {{ loading ? 'Generando...' : 'Activar 2FA' }}
           </button>
@@ -53,7 +53,7 @@
             <p class="text-xs text-gray-500 mt-3">
               ¿No puedes escanear? Ingresa este código manualmente:
             </p>
-            <code class="text-xs text-blue-400 break-all">{{ secret }}</code>
+            <code class="text-xs text-brand-blue break-all">{{ secret }}</code>
           </div>
 
           <div>
@@ -64,7 +64,7 @@
               inputmode="numeric"
               maxlength="6"
               placeholder="123456"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-center text-2xl tracking-widest"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue text-center text-2xl tracking-widest"
             />
           </div>
 
@@ -85,7 +85,7 @@
             <button
               @click="handleConfirm"
               :disabled="loading || confirmCode.length !== 6"
-              class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+              class="flex-1 bg-brand-violet hover:bg-brand-darkest disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
             >
               {{ loading ? 'Verificando...' : 'Confirmar y activar' }}
             </button>

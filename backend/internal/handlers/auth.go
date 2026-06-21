@@ -50,7 +50,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		accountUUID[9:13],
 	)
 
-	if err := h.DB.CreateAccount(accountID, userID, "checking"); err != nil {
+	if err := h.DB.CreateAccount(accountID, userID, "savings"); err != nil {
 		respondError(w, http.StatusInternalServerError, "Error creando cuenta bancaria")
 		return
 	}
