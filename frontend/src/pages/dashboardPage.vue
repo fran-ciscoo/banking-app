@@ -208,6 +208,7 @@
           </div>
         </div>
       </div>
+      <IncomeExpenseChart :transactions="transactions" :account-ids="accounts.map(a => a.id)" />
 
     </div>
     <ChatWidget />
@@ -220,6 +221,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useAccountStore } from '../stores/account'
+import IncomeExpenseChart from '../components/IncomeExpenseChart.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

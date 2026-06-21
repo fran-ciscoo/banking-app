@@ -3,13 +3,22 @@
 
     <!-- Navbar -->
     <nav class="bg-gray-900 border-b border-gray-800 px-6 py-4">
-      <div class="max-w-6xl mx-auto flex items-center gap-4">
-        <router-link to="/dashboard" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-700">
-            ← Volver al inicio
-          </router-link>
-        <h1 class="text-xl font-bold">
-          {{ filterAccountId ? 'Historial de esta cuenta' : 'Historial de transacciones' }}
-        </h1>
+      <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <router-link to="/dashboard" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-700">
+              ← Volver al inicio
+            </router-link>
+          <h1 class="text-xl font-bold">
+            {{ filterAccountId ? 'Historial de esta cuenta' : 'Historial de transacciones' }}
+          </h1>
+        </div>
+        <button
+          v-if="transactions.length > 0"
+          @click="exportToCSV"
+          class="bg-brand-violet hover:bg-brand-darkest text-white text-sm px-4 py-2 rounded-lg transition-colors"
+        >
+          Exportar CSV
+        </button>
       </div>
     </nav>
 
@@ -152,5 +161,31 @@ function accountLabel(tx) {
   const acc = myAccounts.find(a => a.id === involvedId)
   if (!acc) return ''
   return acc.nickname || (acc.type === 'checking' ? 'Cuenta corriente' : 'Cuenta de ahorros')
+}
+
+function exportToCSV() {
+  if (transactions.value.length === 0) return
+
+  const headers = ['Fecha', 'Descripción', 'Tipo', 'Cuenta origen', 'Cuenta destino', 'Monto']
+  const rows = transactions.value.map(tx => [
+    formatDate(tx.timestamp),
+    tx.description || typeLabel(tx.type),
+    typeLabel(tx.type),
+    tx.from_account,
+    tx.to_account,
+    `${amountSign(tx)}${tx.amount.toFixed(2)}`
+  ])
+
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+    .join('\n')
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `historial-transacciones-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 </script>
