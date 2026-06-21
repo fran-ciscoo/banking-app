@@ -11,7 +11,8 @@ Sistema de banca en línea con autenticación, gestión de cuentas, transaccione
 | Base de datos de usuarios | PostgreSQL |
 | Motor financiero | TigerBeetle |
 | IA / Chat | OpenRouter (LLM) + MCP (Go SDK oficial) |
-| Autenticación | JWT + bcrypt |
+| Autenticación | JWT + bcrypt + TOTP (2FA) |
+| Gráficas | Chart.js |
 | Infraestructura | Docker + Docker Compose |
 
 ## Arquitectura
@@ -43,7 +44,7 @@ El sistema está compuesto por **5 servicios** orquestados con Docker Compose:
 
 ### Arquitectura dual de datos
 
-- **PostgreSQL** almacena usuarios, credenciales, y los metadatos de cada cuenta (nickname, tipo, a qué usuario pertenece). Es la fuente de verdad para todo lo que **no** es dinero.
+- **PostgreSQL** almacena usuarios, credenciales (incluyendo secretos TOTP de 2FA), y los metadatos de cada cuenta (nickname, tipo, a qué usuario pertenece). Es la fuente de verdad para todo lo que **no** es dinero.
 - **TigerBeetle** es la fuente de verdad financiera: cada cuenta bancaria tiene una cuenta contable espejo en TigerBeetle (su ID se deriva determinísticamente del ID de cuenta en Postgres mediante un hash SHA-256). Todos los depósitos, retiros y transferencias se registran como `transfers` de doble entrada en TigerBeetle, y el balance mostrado al usuario se lee **en tiempo real** directamente desde TigerBeetle, no desde una copia en Postgres.
 - Existe una cuenta especial `EXTERNAL` (ID `1`) en TigerBeetle que representa dinero entrando o saliendo del sistema bancario (depósitos y retiros en efectivo).
 
@@ -111,39 +112,36 @@ Con el sistema ya levantado (`docker compose up -d`):
 docker compose --profile seed run --rm seed
 ```
 
-Esto crea **10 usuarios**, **17 cuentas** (con sus saldos iniciales reales en TigerBeetle) y **8 transacciones** de transferencia entre ellas. Al finalizar, el script imprime un usuario de ejemplo para iniciar sesión:
-
-```
-Email: ihernandez@email.com
-Password: Isabel2024!
-```
+Esto crea **10 usuarios**, **17 cuentas** (con sus saldos iniciales reales en TigerBeetle) y **8 transacciones** de transferencia entre ellas. Al finalizar, el script imprime un usuario de ejemplo para iniciar sesión.
 
 El servicio `seed` usa Docker Compose **profiles**, por lo que nunca se levanta automáticamente con `docker compose up` — solo se ejecuta cuando se invoca explícitamente con `--profile seed`.
 
 Archivos relevantes:
 - `database/sample-data.json` — muestra de datos extraída del dataset oficial
 - `database/seed.go` — script de carga
-- `database/seed.Dockerfile` — imagen específica para ejecutar el seed dentro del entorno Docker (necesario porque el cliente nativo de TigerBeetle requiere el mismo entorno Linux/`io_uring` que el resto de los servicios)
+- `database/seed.Dockerfile` — imagen específica para ejecutar el seed dentro del entorno Docker
 
 ## Funcionalidades
 
 ### Autenticación
 - Registro de usuarios con contraseña hasheada (bcrypt)
-- Login con JWT (expira en 24 horas)
+- Login con JWT (expira en 20 minutos)
 - Logout
+- **Autenticación de dos factores (2FA) con TOTP** — compatible con Google Authenticator, Authy y similares, configurable desde la página de Seguridad
 - Middleware de autenticación en rutas protegidas
 
 ### Gestión de cuentas
-- Creación de cuenta bancaria automática al registrarse, con su cuenta contable espejo en TigerBeetle
+- Creación de cuenta bancaria automática al registrarse (tipo ahorros por defecto), con su cuenta contable espejo en TigerBeetle
 - Soporte para múltiples cuentas por usuario (corriente / ahorros)
 - Edición de nickname de cuenta
 - Eliminación de cuenta (solo si el saldo en TigerBeetle es $0)
 
 ### Transacciones (procesadas en TigerBeetle)
-- Depósito
-- Retiro (TigerBeetle valida automáticamente que haya saldo suficiente; las cuentas no pueden ir negativas por defecto)
-- Transferencia entre cuentas (propias o de terceros, según el canal usado)
-- Historial de transacciones por usuario o filtrado por cuenta
+- Depósito y retiro, con selector explícito de cuenta de origen/destino
+- Retiro con validación de saldo (TigerBeetle bloquea balances negativos por defecto)
+- Transferencia con dos modos: **entre cuentas propias** o **a un tercero**, cada uno con sus propios selectores
+- Historial de transacciones por usuario o filtrado por cuenta, con exportación a CSV
+- Gráfica de ingresos vs gastos por mes en el dashboard
 
 ### Chat con IA (MCP)
 El usuario puede interactuar en lenguaje natural desde un widget de chat flotante en el dashboard:
@@ -154,7 +152,7 @@ El usuario puede interactuar en lenguaje natural desde un widget de chat flotant
 - *"Muéstrame mis últimas transacciones"*
 - *"¿Por qué no puedo cerrar mi cuenta?"*
 
-El LLM interpreta la intención, confirma la operación antes de ejecutarla, llama a la tool MCP correspondiente (que opera sobre TigerBeetle real), y responde en lenguaje natural con el resultado.
+El LLM interpreta la intención, confirma la operación antes de ejecutarla, llama a la tool MCP correspondiente (que opera sobre TigerBeetle real), y responde en lenguaje natural con el resultado. El dashboard se refresca automáticamente tras cualquier operación realizada por chat.
 
 ## Estructura del proyecto
 
@@ -163,7 +161,7 @@ banking-app/
 ├── backend/              # API REST en Go
 │   ├── cmd/server/       # Punto de entrada
 │   ├── internal/
-│   │   ├── handlers/     # Controladores HTTP
+│   │   ├── handlers/     # Controladores HTTP (incluye 2FA)
 │   │   ├── services/     # Lógica de negocio, cliente MCP, OpenRouter
 │   │   ├── repository/   # Acceso a PostgreSQL y TigerBeetle
 │   │   └── models/       # Structs de datos
@@ -173,8 +171,8 @@ banking-app/
 │   └── main.go
 ├── frontend/             # SPA en Vue 3
 │   └── src/
-│       ├── pages/        # Login, registro, dashboard, transacciones, historial
-│       ├── components/   # ChatWidget y otros componentes
+│       ├── pages/        # Login, registro, dashboard, transacciones, historial, seguridad
+│       ├── components/   # ChatWidget, IncomeExpenseChart
 │       ├── stores/       # Pinia (auth, account)
 │       └── router/       # Vue Router
 ├── database/             # Scripts SQL, inicialización de TigerBeetle y datos de prueba
@@ -191,17 +189,20 @@ banking-app/
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | POST | `/api/auth/register` | Registro de usuario |
-| POST | `/api/auth/login` | Login |
+| POST | `/api/auth/login` | Login (paso 1: credenciales, paso 2: código 2FA si aplica) |
 | POST | `/api/auth/logout` | Logout |
 | GET | `/api/account` | Cuentas del usuario (balance leído de TigerBeetle) |
 | POST | `/api/account/create` | Crear cuenta nueva (Postgres + TigerBeetle) |
 | PUT | `/api/account/{id}/nickname` | Editar nombre de cuenta |
 | DELETE | `/api/account/{id}` | Eliminar cuenta (saldo $0 en TigerBeetle) |
-| POST | `/api/transactions/deposit` | Depositar (vía TigerBeetle) |
-| POST | `/api/transactions/withdraw` | Retirar (vía TigerBeetle) |
-| POST | `/api/transactions/transfer` | Transferir (vía TigerBeetle) |
+| POST | `/api/transactions/deposit` | Depositar (vía TigerBeetle), requiere `account_id` |
+| POST | `/api/transactions/withdraw` | Retirar (vía TigerBeetle), requiere `account_id` |
+| POST | `/api/transactions/transfer` | Transferir (vía TigerBeetle), requiere `from_account_id` y `to_account_id` |
 | GET | `/api/transactions/history` | Historial, con filtro opcional por cuenta |
 | POST | `/api/chat` | Chat con el asistente bancario IA (vía MCP) |
+| POST | `/api/2fa/setup` | Genera secreto y código QR para activar 2FA |
+| POST | `/api/2fa/confirm` | Confirma el código inicial y activa 2FA |
+| POST | `/api/2fa/disable` | Desactiva 2FA |
 
 ## Desarrollo local (sin Docker)
 
@@ -235,7 +236,8 @@ Cada carpeta (`backend/`, `mcp-server/`) requiere su propio archivo `.env` con `
 - **Arquitectura dual real:** se optó por una separación estricta de responsabilidades — PostgreSQL nunca almacena el balance autoritativo, solo TigerBeetle. Esto cumple el espíritu del requisito de "arquitectura dual" de la prueba: dos bases de datos, cada una responsable de un dominio distinto.
 - **IDs determinísticos:** los IDs de cuenta de TigerBeetle (`uint64`) se derivan de los IDs de cuenta de PostgreSQL (`string`, formato `4001-XXXX-XXXX-XXXX`) mediante SHA-256, garantizando que ambos sistemas siempre referencien la misma cuenta sin necesidad de una tabla de mapeo adicional.
 - **Uint128 y endianness:** TigerBeetle representa los valores de 128 bits (`Uint128`) en formato little-endian a nivel de bytes. Al convertir a `big.Int` de Go (que espera big-endian), es necesario invertir el orden de los bytes antes de la conversión; de lo contrario, los balances se calculan incorrectamente.
+- **2FA con TOTP:** implementado con la librería `pquerna/otp`, compatible con el estándar Google Authenticator (SHA1, 6 dígitos, periodo de 30s). El secreto se guarda en PostgreSQL solo tras la primera confirmación exitosa.
 - **MCP real:** se optó por implementar un servidor MCP independiente (en vez de function calling directo) para cumplir fielmente el protocolo, permitiendo que el backend actúe como cliente MCP estándar, reutilizable por cualquier otro cliente compatible con el protocolo.
 - **Modelo de IA:** se usa un modelo gratuito de OpenRouter compatible con tool calling, configurable en `internal/services/openrouter.go`.
 - **Datos de prueba:** se cargó una muestra representativa (no el dataset completo de 1000 usuarios) para mantener tiempos de carga y pruebas manejables; el script `seed.go` es fácilmente extensible a un dataset mayor ajustando el archivo JSON de entrada.
-- **Seguridad:** las contraseñas se almacenan con bcrypt; los tokens JWT expiran en 24 horas; los archivos `.env` están excluidos del control de versiones; el chat con IA tiene restricciones explícitas sobre qué operaciones puede ejecutar y bajo qué condiciones.
+- **Seguridad:** las contraseñas se almacenan con bcrypt; los tokens JWT expiran en 20 minutos; los archivos `.env` están excluidos del control de versiones; el chat con IA tiene restricciones explícitas sobre qué operaciones puede ejecutar y bajo qué condiciones.
